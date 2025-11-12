@@ -25,7 +25,6 @@ exports.signup = asyncHandler(async (req, res, next) => {
     services,
     email,
     password,
-    passwordConfirm,
     role
   } = req.body;
 
@@ -35,7 +34,8 @@ const uploadToCloudinary = async (file, folder) => {
   const result = await cloudinary.uploader.upload(dataURI, {
     folder: folder || 'hotel-documents',
     resource_type: 'auto',
-  });
+     access_mode: 'public'
+  }); 
   return result.secure_url;
 };
 
@@ -64,12 +64,11 @@ if (req.files && req.files.CommercialRegister)
     Licensing: LicensingUrl,
     email,
     password,
-    passwordConfirm,
     role
   });
 
   const token = createToken(user._id);
-  res.status(201).json({ data: user, token });
+  res.status(201).json({ status: "user created successfully", token });
 });
 
 // @desc    Login
@@ -89,7 +88,7 @@ exports.login = asyncHandler(async (req, res, next) => {
   // Delete password from response
   delete user._doc.password;
   // 4) send response to client side
-  res.status(200).json({ data: user, token });
+  res.status(200).json({ status: "successfully login", token });
 });
 
 // @desc   make sure the user is logged in

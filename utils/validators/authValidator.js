@@ -33,15 +33,7 @@ exports.signupValidator = [
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters'),
 
-  check('passwordConfirm')
-    .notEmpty()
-    .withMessage('Password confirmation is required')
-    .custom((passwordConfirm, { req }) => {
-      if (passwordConfirm !== req.body.password) {
-        throw new Error('Passwords do not match');
-      }
-      return true;
-    }),
+
 
 
 

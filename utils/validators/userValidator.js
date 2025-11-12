@@ -40,9 +40,6 @@ exports.createUserValidator = [
       return true;
     }),
 
-  check('passwordConfirm')
-    .notEmpty()
-    .withMessage('Password confirmation required'),
 
   check('phone')
     .optional()
