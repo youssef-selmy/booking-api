@@ -9,6 +9,7 @@ const sendEmail = require('../utils/sendEmail');
 const createToken = require('../utils/createToken');
 const cloudinary = require('../config/cloudinary');
 const User = require('../models/userModel');
+const Hotel = require('../models/hotelModel')
 
 // @desc    Signup
 // @route   GET /api/v1/auth/signup
@@ -28,48 +29,97 @@ exports.signup = asyncHandler(async (req, res, next) => {
     role
   } = req.body;
 
-const uploadToCloudinary = async (file, folder) => {
-  const base64 = file.buffer.toString('base64');
-  const dataURI = `data:${file.mimetype};base64,${base64}`;
-  const result = await cloudinary.uploader.upload(dataURI, {
-    folder: folder || 'hotel-documents',
-    resource_type: 'auto',
-     access_mode: 'public'
-  }); 
-  return result.secure_url;
-};
+  let user;
+  let uploadedImages = []; // keep track of uploaded files
 
-  let LicensingUrl = null;
-  let taxCardUrl = null;
-  let CommercialRegisterUrl = null;
+  try {
+    // 1️⃣ Create the user first
+    user = await User.create({
+      userName,
+      email,
+      password,
+      role
+    });
 
-if (req.files && req.files.Licensing)
-  LicensingUrl = await uploadToCloudinary(req.files.Licensing[0], 'Licensing');
+    // If user creation fails → exit
+    if (!user) throw new Error("User creation failed");
 
-if (req.files && req.files.taxCard)
-  taxCardUrl = await uploadToCloudinary(req.files.taxCard[0], 'taxCard');
+    // 2️⃣ Upload images (hotel documents)
+    const uploadToCloudinary = async (file, folder) => {
+      const base64 = file.buffer.toString("base64");
+      const dataUri = `data:${file.mimetype};base64,${base64}`;
 
-if (req.files && req.files.CommercialRegister)
-  CommercialRegisterUrl = await uploadToCloudinary(req.files.CommercialRegister[0], 'CommercialRegister');
+      const result = await cloudinary.uploader.upload(dataUri, {
+        folder: folder,
+        resource_type: "auto",
+        type: "upload"
+      });
 
-  const user = await User.create({
-    userName,
-    hotelName,
-    location,
-    totalRooms,
-    totalOnwers,
-    services,
-    CommercialRegister: CommercialRegisterUrl,
-    taxCard: taxCardUrl,
-    Licensing: LicensingUrl,
-    email,
-    password,
-    role
-  });
+      // Track uploaded files to delete them on failure
+      uploadedImages.push(result.public_id);
 
-  const token = createToken(user._id);
-  res.status(201).json({ status: "user created successfully", token });
+      return result.secure_url;
+    };
+
+    let LicensingUrl = null;
+    let taxCardUrl = null;
+    let CommercialRegisterUrl = null;
+
+    if (req.files?.Licensing)
+      LicensingUrl = await uploadToCloudinary(req.files.Licensing[0], "Licensing");
+
+    if (req.files?.taxCard)
+      taxCardUrl = await uploadToCloudinary(req.files.taxCard[0], "taxCard");
+
+    if (req.files?.CommercialRegister)
+      CommercialRegisterUrl = await uploadToCloudinary(req.files.CommercialRegister[0], "CommercialRegister");
+
+    // 3️⃣ Create hotel entry linked to the user
+    const hotel = await Hotel.create({
+      hotelName,
+      location,
+      email,
+      totalRooms,
+      totalOwners: totalOnwers,
+      services,
+      licensing: LicensingUrl,
+      taxCard: taxCardUrl,
+      commercialRegister: CommercialRegisterUrl,
+      owner: user._id
+    });
+
+    // 4️⃣ Success → send token
+    const token = createToken(user._id);
+
+    res.status(201).json({
+      success: true,
+      token,
+      user,
+      hotel
+    });
+
+  } catch (error) {
+    // 5️⃣ Rollback logic
+
+    // Delete any uploaded images
+    if (uploadedImages.length > 0) {
+      // eslint-disable-next-line no-restricted-syntax
+      for (const id of uploadedImages) {
+        // eslint-disable-next-line no-await-in-loop
+        await cloudinary.uploader.destroy(id);
+      }
+    }
+
+    // Delete the created user if failure happened after creation
+    if (user) {
+      await User.findByIdAndDelete(user._id);
+    }
+
+    return next(error);
+  }
 });
+
+
 
 // @desc    Login
 // @route   GET /api/v1/auth/login
@@ -88,7 +138,7 @@ exports.login = asyncHandler(async (req, res, next) => {
   // Delete password from response
   delete user._doc.password;
   // 4) send response to client side
-  res.status(200).json({ status: "successfully login", token });
+  res.status(200).json({ status: "true", token });
 });
 
 // @desc   make sure the user is logged in

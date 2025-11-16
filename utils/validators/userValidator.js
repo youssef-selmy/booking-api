@@ -5,7 +5,7 @@ const validatorMiddleware = require('../../middlewares/validatorMiddleware');
 const User = require('../../models/userModel');
 
 exports.createUserValidator = [
-  check('name')
+  check('userName')
     .notEmpty()
     .withMessage('User required')
     .isLength({ min: 3 })
@@ -32,13 +32,11 @@ exports.createUserValidator = [
     .notEmpty()
     .withMessage('Password required')
     .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters')
-    .custom((password, { req }) => {
-      if (password !== req.body.passwordConfirm) {
-        throw new Error('Password Confirmation incorrect');
-      }
-      return true;
-    }),
+    .withMessage('Password must be at least 6 characters'),
+    
+      check('role')
+    .notEmpty()
+    .withMessage('role required'),
 
 
   check('phone')
@@ -59,15 +57,14 @@ exports.getUserValidator = [
 
 exports.updateUserValidator = [
   check('id').isMongoId().withMessage('Invalid User id format'),
-  body('name')
+  body('userName')
     .optional()
     .custom((val, { req }) => {
       req.body.slug = slugify(val);
       return true;
     }),
   check('email')
-    .notEmpty()
-    .withMessage('Email required')
+    .optional()
     .isEmail()
     .withMessage('Invalid email address')
     .custom((val) =>

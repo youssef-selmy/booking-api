@@ -11,44 +11,7 @@ const userSchema = new mongoose.Schema(
       trim: true,
       required: [true, 'name required'],
     },
-        hotelName: {
-      type: String,
-      trim: true,
-      required: [true, 'HotelName required'],
-    },
-          location: {
-      type: String,
-      trim: true,
-      required: [true, 'location required'],
-    },
-              totalRooms: {
-      type: Number,
-      required: [true, 'totalRooms required'],
-    },
-                totalOnwers: {
-      type: Number,
-      required: [true, 'totalOnwers required'],
-    },
-            services: {
-      type: String,
-      trim: true,
-      required: [true, 'services required'],
-    },
-              CommercialRegister: {
-      type: String,
       
-      required: [true, 'CommercialRegister required'],
-    },
-                  taxCard: {
-      type: String,
-    
-      required: [true, 'taxCard required'],
-    },
-                  Licensing: {
-      type: String,
-      
-      required: [true, 'Licensing required'],
-    },
     slug: {
       type: String,
       lowercase: true,
@@ -75,7 +38,7 @@ const userSchema = new mongoose.Schema(
     passwordResetVerified: Boolean,
     role: {
       type: String,
-      enum: [ 'manager', 'admin'],
+      enum: [ 'front_office','manager', 'admin'],
       default: 'manager',
     },
     active: {

@@ -52,7 +52,7 @@ exports.updateUser = asyncHandler(async (req, res, next) => {
   const document = await User.findByIdAndUpdate(
     req.params.id,
     {
-      name: req.body.name,
+      userName: req.body.userName,
       slug: req.body.slug,
       phone: req.body.phone,
       email: req.body.email,
