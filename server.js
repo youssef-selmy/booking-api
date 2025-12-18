@@ -17,6 +17,9 @@ const dbConnection = require('./config/database');
 const userRoute = require('./routes/userRoute');
 const authRoute=require('./routes/authRoute')
 const hotelRoute=require('./routes/hotelRoute')
+const roomRoute=require('./routes/roomRoute')
+const roomCategory=require('./routes/roomCategoryRoute')
+const roomType=require('./routes/roomTypeRoute')
 
 
 
@@ -63,6 +66,9 @@ if (process.env.NODE_ENV === 'development') {
 app.use('/api/v1/auth',authRoute)
 app.use('/api/v1/users', userRoute);
 app.use('/api/v1/hotels', hotelRoute);
+app.use('/api/v1/rooms', roomRoute);
+app.use('/api/v1/roomCategory', roomCategory);
+app.use('/api/v1/roomType', roomType);
 
 
 
