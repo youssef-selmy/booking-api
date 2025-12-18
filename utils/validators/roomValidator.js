@@ -21,10 +21,7 @@ exports.createRoomValidator = [
 
 
 
-  check("pricePerNight")
-    .notEmpty().withMessage("Price per night is required")
-    .isFloat({ min: 0 })
-    .withMessage("Price per night must be a positive number"),
+  
 
   check("maxGuests")
     .notEmpty().withMessage("Max guests is required")
@@ -90,11 +87,6 @@ exports.updateRoomValidator = [
   //     "mixed"
   //   ])
   //   .withMessage("Invalid bed type"),
-
-  check("pricePerNight")
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage("Price per night must be a positive number"),
 
   check("maxGuests")
     .optional()

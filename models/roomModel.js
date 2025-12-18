@@ -22,11 +22,11 @@ const roomSchema = new mongoose.Schema(
     },
 
 
-    pricePerNight: {
-      type: Number,
-      required: true,
-      min: 0
-    },
+    // pricePerNight: {
+    //   type: Number,
+    //   required: true,
+    //   min: 0
+    // },
 
     maxGuests: {
       type: Number,
