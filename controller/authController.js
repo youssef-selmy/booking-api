@@ -89,7 +89,7 @@ exports.signup = asyncHandler(async (req, res, next) => {
     });
 
     // 4️⃣ Success → send token
-    const token = createToken(user._id);
+    const token = createToken(user._id,user.role);
 
     res.status(201).json({
       success: true,
