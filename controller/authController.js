@@ -133,7 +133,7 @@ exports.login = asyncHandler(async (req, res, next) => {
     return next(new ApiError('Incorrect email or password', 401));
   }
   // 3) generate token
-  const token = createToken(user._id);
+    const token = createToken(user._id,user.role);
 
   // Delete password from response
   delete user._doc.password;
