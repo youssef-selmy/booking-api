@@ -23,6 +23,7 @@ const roomType=require('./routes/roomTypeRoute')
 const pricingRoute = require("./routes/roomPricingRoute");
 const packagesRoute = require('./routes/roomPackagesRoute');
 const servicesRoute = require('./routes/roomServicesRoute');
+const reservationRoute = require('./routes/reservationRoutes');
 
 
 
@@ -81,7 +82,7 @@ app.use('/api/v1/roomType', roomType);
 app.use("/api/v1/pricing", pricingRoute);
 app.use('/api/v1/packages', packagesRoute);
 app.use('/api/v1/services', servicesRoute);
-
+app.use('/api/v1/reservation', reservationRoute);
 
 
 app.all('*', (req, res, next) => {

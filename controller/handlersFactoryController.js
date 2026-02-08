@@ -11,7 +11,7 @@ exports.deleteOne = (Model) =>
       return next(new ApiError(`No document for this id ${id}`, 404));
     }
     res.status(204).send();
-  });
+  }); 
 
 exports.updateOne = (Model) =>
   asyncHandler(async (req, res, next) => {
