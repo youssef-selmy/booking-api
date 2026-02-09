@@ -71,5 +71,19 @@ const roomSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+roomSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    if (ret.category?.name) ret.category = ret.category.name;
+    if (ret.type?.name) ret.type = ret.type.name;
+    return ret;
+  }
+});
+
+roomSchema.pre(/^find/, function (next) {
+  this.populate('category', 'name')
+      .populate('type', 'name');
+  next();
+});
+
 
 module.exports = mongoose.model('Room', roomSchema);

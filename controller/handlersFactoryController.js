@@ -49,21 +49,31 @@ exports.getAll = (Model, modelName = '') =>
     if (req.filterObj) {
       filter = req.filterObj;
     }
-    // Build query
-    const documentsCounts = await Model.countDocuments();
-    const apiFeatures = new ApiFeatures(Model.find(filter), req.query)
-      .paginate(documentsCounts)
+
+    const isAll = req.query.all === 'true';
+
+    // Build base query
+    let apiFeatures = new ApiFeatures(Model.find(filter), req.query)
       .filter()
       .search(modelName)
       .limitFields()
       .sort();
 
-    // Execute query
-    const { mongooseQuery, paginationResult } = apiFeatures;
-    const documents = await mongooseQuery;
+    let paginationResult;
 
-    res
-      .status(200)
-      .json({ results: documents.length, paginationResult, data: documents });
+    // ✅ Apply pagination ONLY if all !== true
+    if (!isAll) {
+      const documentsCounts = await Model.countDocuments(filter);
+      apiFeatures = apiFeatures.paginate(documentsCounts);
+      paginationResult = apiFeatures.paginationResult;
+    }
+
+    // Execute query
+    const documents = await apiFeatures.mongooseQuery;
+
+    res.status(200).json({
+      results: documents.length,
+      ...(paginationResult && { paginationResult }),
+      data: documents
+    });
   });
- 

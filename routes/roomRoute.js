@@ -13,6 +13,7 @@ const {
   deleteRoom,
   updateRoom,
   createRoom,
+  setHotelIdToBody
 } = require("../controller/roomController");
 const authController = require("../controller/authController");
 
@@ -22,6 +23,7 @@ router.use(authController.protect);
 
 router.post(
   "/",
+  setHotelIdToBody,
   createRoomValidator,
   createRoom
 );

@@ -36,5 +36,26 @@ exports.deleteRoom = factory.deleteOne(Room);
 
 exports.createRoom = factory.createOne(Room)
 
+const Hotel = require('../models/hotelModel');
+
+exports.setHotelIdToBody = async (req, res, next) => {
+  // Extra safety: never trust client
+  if (req.body.hotel) delete req.body.hotel;
+
+  // 🔎 Find hotel that contains this user
+  const hotel = await Hotel.findOne({ users: req.user._id });
+
+  if (!hotel) {
+    return res.status(403).json({
+      status: 'fail',
+      message: 'User is not assigned to any hotel'
+    });
+  }
+
+  // ✅ Inject hotel id
+  req.body.hotel = hotel._id;
+
+  next();
+};
 
 
