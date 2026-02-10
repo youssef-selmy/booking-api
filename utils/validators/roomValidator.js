@@ -69,10 +69,10 @@ exports.updateRoomValidator = [
     .isLength({ min: 1 })
     .withMessage("Room number is invalid"),
 
-  check("type")
-    .optional()
-    .isIn(["single", "double", "suite", "deluxe", "family"])
-    .withMessage("Invalid room type"),
+  // check("type")
+  //   .optional()
+  //   .isIn(["single", "double", "suite", "deluxe", "family"])
+  //   .withMessage("Invalid room type"),
 
   // check("bedType")
   //   .optional()
