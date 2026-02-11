@@ -1,7 +1,6 @@
 const Reservation = require("../models/Reservation");
 const Room = require("../models/roomModel");
-
-
+const mongoose = require("mongoose");
 
 exports.getDashboardOverview = async (req, res, next) => {
   try {
@@ -12,56 +11,50 @@ exports.getDashboardOverview = async (req, res, next) => {
     todayEnd.setHours(23, 59, 59, 999);
 
     // ===============================
-    // OVERVIEW COUNTS
+    // ARRIVAL COUNT
     // ===============================
-    const todaysArrivals = await Reservation.countDocuments({
+    const arrival = await Reservation.countDocuments({
       checkIn: { $gte: todayStart, $lte: todayEnd },
-    
+      status: "confirmed"
     });
 
-    const todaysDepartures = await Reservation.countDocuments({
+    // ===============================
+    // DEPARTURE COUNT
+    // ===============================
+    const departure = await Reservation.countDocuments({
       checkOut: { $gte: todayStart, $lte: todayEnd },
-      
+      status: "confirmed"
     });
 
+    // ===============================
+    // IN HOUSE
+    // ===============================
     const inHouse = await Reservation.countDocuments({
       checkIn: { $lte: todayEnd },
       checkOut: { $gt: todayStart },
-      
+      status: "confirmed"
     });
 
+    // ===============================
+    // ROOM STATUS
+    // ===============================
     const totalRooms = await Room.countDocuments();
     const occupiedRooms = await Room.countDocuments({ status: "occupied" });
-    const availableRooms = totalRooms - occupiedRooms;
-
-    const occupancyPercentage = totalRooms === 0
-      ? 0
-      : Math.round((occupiedRooms / totalRooms) * 100);
+    const avilableRooms = totalRooms - occupiedRooms;
 
     // ===============================
-    // REVENUE TODAY
+    // ROOM SUMMARY BY CATEGORY + TYPE
     // ===============================
-    const revenueTodayAgg = await Reservation.aggregate([
+    const roomsAggregation = await Room.aggregate([
       {
-        $match: {
-          createdAt: { $gte: todayStart, $lte: todayEnd },
-          
+        $lookup: {
+          from: "roomcategories",
+          localField: "category",
+          foreignField: "_id",
+          as: "category"
         }
       },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: "$paidAmount" }
-        }
-      }
-    ]);
-
-    const revenueToday = revenueTodayAgg[0]?.total || 0;
-
-    // ===============================
-    // ROOM TYPE SUMMARY
-    // ===============================
-    const roomTypeSummary = await Room.aggregate([
+      { $unwind: "$category" },
       {
         $lookup: {
           from: "roomtypes",
@@ -73,49 +66,83 @@ exports.getDashboardOverview = async (req, res, next) => {
       { $unwind: "$type" },
       {
         $group: {
-          _id: "$type.name",
-          total: { $sum: 1 }
+          _id: {
+            category: "$category.name",
+            type: "$type.name"
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id.category",
+          types: {
+            $push: {
+              name: "$_id.type",
+              value: "$count"
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          name: "$_id",
+          types: 1
         }
       }
     ]);
 
     // ===============================
-    // TODAY'S ARRIVALS TABLE
+    // TODAY ARRIVALS TABLE
     // ===============================
-    const todaysArrivalTable = await Reservation.find({
+    const arrivalsData = await Reservation.find({
       checkIn: { $gte: todayStart, $lte: todayEnd },
       status: "confirmed"
-    })
-      .populate("rooms.room", "roomNumber")
-      .select("mainGuest rooms nights totalAmount paidAmount");
+    }).populate("rooms.room");
+
+    const arrivals = arrivalsData.flatMap(reservation =>
+      reservation.rooms.map(r => ({
+        roomNumber: r.room?.roomNumber || "-",
+        name: `${reservation.mainGuest.firstName} ${reservation.mainGuest.lastName}`,
+        bookedNights: r.nights,
+        total: reservation.totalAmount,
+        paid: reservation.paidAmount
+      }))
+    );
 
     // ===============================
-    // TODAY'S DEPARTURE TABLE
+    // TODAY DEPARTURES TABLE
     // ===============================
-    const todaysDepartureTable = await Reservation.find({
+    const departuresData = await Reservation.find({
       checkOut: { $gte: todayStart, $lte: todayEnd },
       status: "confirmed"
-    })
-      .populate("rooms.room", "roomNumber")
-      .select("mainGuest rooms nights totalAmount paidAmount");
+    }).populate("rooms.room");
 
+    const departuers = departuresData.flatMap(reservation =>
+      reservation.rooms.map(r => ({
+        roomNumber: r.room?.roomNumber || "-",
+        name: `${reservation.mainGuest.firstName} ${reservation.mainGuest.lastName}`,
+        bookedNights: r.nights,
+        total: reservation.totalAmount,
+        paid: reservation.paidAmount
+      }))
+    );
+
+    // ===============================
+    // FINAL RESPONSE
+    // ===============================
     res.status(200).json({
-      status: "success",
-      data: {
-        overview: {
-          todaysArrivals,
-          todaysDepartures,
-          inHouse,
-          availableRooms,
-          occupiedRooms,
-          occupancyPercentage,
-          revenueToday
-        },
-        roomTypeSummary,
-        todaysArrivalTable,
-        todaysDepartureTable
-      }
+      arrival,
+      departure,
+      inHouse,
+      avilableRooms,
+      occupiedRooms,
+      rooms: roomsAggregation,
+      arrivals,
+      departuers
     });
+
   } catch (error) {
     next(error);
   }
