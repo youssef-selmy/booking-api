@@ -80,12 +80,50 @@ const reservationSchema = new mongoose.Schema({
   },
 
   checkIn: Date,
-  checkOut: Date
+  checkOut: Date,
+
+  stayStatus: {
+  type: String,
+  enum: [
+    'reserved',
+    'checked-in',
+    'checked-out'
+  
+  ],
+  default: 'reserved'
+},
+
+// actualCheckIn: Date,
+// actualCheckOut: Date,
+
 }, { timestamps: true });
 
 
 // ----------------- Pre-save Middleware ----------------- //
 reservationSchema.pre('save', async function (next) {
+
+
+     // 🔥 Prevent double booking
+    for (const r of this.rooms) {
+
+      const overlappingReservation = await mongoose.model('Reservation').findOne({
+        _id: { $ne: this._id }, // exclude current reservation (important for updates)
+
+        "rooms.room": r.room,
+
+        status: { $ne: "canceled" },
+
+        checkIn: { $lt: this.checkOut },
+        checkOut: { $gt: this.checkIn }
+      });
+
+      if (overlappingReservation) {
+        return next(
+          new Error(`Room is already reserved for the selected dates`)
+        );
+      }
+    }
+
   let roomsTotal = 0;
 
   for (const r of this.rooms) {
