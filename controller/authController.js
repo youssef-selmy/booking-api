@@ -89,7 +89,7 @@ exports.signup = asyncHandler(async (req, res, next) => {
     });
 
     // 4️⃣ Success → send token
-    const token = createToken(user._id,user.role);
+    const token = createToken(user._id,user.role,hotel._id);
 
     res.status(201).json({
       success: true,
@@ -133,7 +133,7 @@ exports.login = asyncHandler(async (req, res, next) => {
     return next(new ApiError('Incorrect email or password', 401));
   }
   // 3) generate token
-    const token = createToken(user._id,user.role);
+    const token = createToken(user._id,user.role,user.hotel);
 
   // Delete password from response
   delete user._doc.password;

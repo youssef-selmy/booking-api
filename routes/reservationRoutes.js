@@ -24,12 +24,20 @@ router.get(
     reservationController.getReservations
 );
 
+
+router.get(
+  "/available/rooms",
+  reservationController.getAvailableRooms
+);
+
 // Get a reservation by ID
 router.get(
     '/:id',
     reservationValidator.getReservationValidator,
     reservationController.getReservation
 );
+
+
 
 // Update reservation
 router.put(

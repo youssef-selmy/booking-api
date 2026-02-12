@@ -186,3 +186,70 @@ exports.getNoShow = async (req, res) => {
     });
   }
 };
+
+
+
+
+
+
+exports.checkIn = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const reservation = await Reservation.findById(id);
+
+    if (!reservation)
+      return res.status(404).json({ message: "Reservation not found" });
+
+    if (reservation.status === "canceled")
+      return res.status(400).json({ message: "Reservation is canceled" });
+
+    if (reservation.stayStatus !== "reserved")
+      return res.status(400).json({ message: "Already checked in or completed" });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (reservation.checkIn > today)
+      return res.status(400).json({ message: "Check-in date not reached yet" });
+
+    reservation.stayStatus = "checked-in";
+    reservation.status = "confirmed";
+
+    await reservation.save();
+
+    res.json({ message: "Checked in successfully", reservation });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+
+exports.checkOut = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const reservation = await Reservation.findById(id);
+
+    if (!reservation)
+      return res.status(404).json({ message: "Reservation not found" });
+
+    if (reservation.stayStatus !== "checked-in")
+      return res.status(400).json({ message: "Guest is not checked in" });
+
+    if (reservation.remainingAmount > 0)
+      return res.status(400).json({ message: "Outstanding balance must be paid before checkout" });
+
+    reservation.stayStatus = "checked-out";
+    reservation.actualCheckOut = new Date();
+
+    await reservation.save();
+
+    res.json({ message: "Checked out successfully", reservation });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
