@@ -87,7 +87,12 @@ exports.signup = asyncHandler(async (req, res, next) => {
       commercialRegister: CommercialRegisterUrl,
       owner: user._id
     });
-
+// 4️⃣ Update user with hotel id
+await User.findByIdAndUpdate(
+  user._id,
+  { hotel: hotel._id },
+  { new: true }
+);
     // 4️⃣ Success → send token
     const token = createToken(user._id,user.role,hotel._id);
 
