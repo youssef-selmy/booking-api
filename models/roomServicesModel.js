@@ -12,6 +12,12 @@ const serviceSchema = new mongoose.Schema(
       required: [true, "Service price is required"],
       min: [0, "Service price must be positive"],
     },
+    hotel: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Hotel",
+  required: true
+}
+
   },
   { timestamps: true }
 );

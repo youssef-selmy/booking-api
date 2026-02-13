@@ -1,31 +1,95 @@
 const asyncHandler = require('express-async-handler');
-
-const factory = require('./handlersFactoryController');
 const ApiError = require('../utils/apiError');
-
 const Services = require('../models/roomServicesModel');
 
-// @desc    Get list of services
+// @desc    Get all services for the hotel
 // @route   GET /api/v1/services
 // @access  Private/Admin
-exports.getServices = factory.getAll(Services);
+exports.getServices = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
 
-// @desc    Get specific service by id
+  if (!hotelId) {
+    return next(new ApiError('User is not linked to any hotel', 400));
+  }
+
+  const services = await Services.find({ hotel: hotelId });
+
+  res.status(200).json({
+    results: services.length,
+    data: services,
+  });
+});
+
+// @desc    Get specific service (hotel protected)
 // @route   GET /api/v1/services/:id
-// @access  Private/Admin
-exports.getService = factory.getOne(Services);
+exports.getService = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
 
-// @desc    Create service
-// @route   POST  /api/v1/services
-// @access  Private/Admin
-exports.createService = factory.createOne(Services);
+  const service = await Services.findOne({
+    _id: req.params.id,
+    hotel: hotelId,
+  });
 
-// @desc    Update specific service
+  if (!service) {
+    return next(new ApiError('Service not found for this hotel', 404));
+  }
+
+  res.status(200).json({ data: service });
+});
+
+// @desc    Create service for logged-in hotel
+// @route   POST /api/v1/services
+exports.createService = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
+
+  if (!hotelId) {
+    return next(new ApiError('User is not linked to any hotel', 400));
+  }
+
+  // Never trust client input
+  if (req.body.hotel) delete req.body.hotel;
+
+  req.body.hotel = hotelId;
+
+  const service = await Services.create(req.body);
+
+  res.status(201).json({
+    success: true,
+    data: service,
+  });
+});
+
+// @desc    Update specific service (hotel protected)
 // @route   PUT /api/v1/services/:id
-// @access  Private/Admin
-exports.updateService = factory.updateOne(Services);
+exports.updateService = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
 
-// @desc    Delete specific service
+  const updated = await Services.findOneAndUpdate(
+    { _id: req.params.id, hotel: hotelId },
+    req.body,
+    { new: true, runValidators: true }
+  );
+
+  if (!updated) {
+    return next(new ApiError('Service not found or not authorized', 404));
+  }
+
+  res.status(200).json({ success: true, data: updated });
+});
+
+// @desc    Delete specific service (hotel protected)
 // @route   DELETE /api/v1/services/:id
-// @access  Private/Admin
-exports.deleteService = factory.deleteOne(Services);
+exports.deleteService = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
+
+  const deleted = await Services.findOneAndDelete({
+    _id: req.params.id,
+    hotel: hotelId,
+  });
+
+  if (!deleted) {
+    return next(new ApiError('Service not found or not authorized', 404));
+  }
+
+  res.status(204).send();
+});

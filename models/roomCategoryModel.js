@@ -8,6 +8,12 @@ const roomCategorySchema = new mongoose.Schema(
       trim: true,
       unique: true
     },
+    hotel: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Hotel",
+  required: true
+}
+
     //     price: {
     //   type: Number,
     //   required: [true, "Service price is required"],

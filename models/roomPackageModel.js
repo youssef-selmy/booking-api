@@ -12,6 +12,12 @@ const PackageSchema = new mongoose.Schema(
       required: [true, "Packages is required"],
       min: [0, "Packages must be positive"],
     },
+    hotel: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Hotel",
+  required: true
+}
+
   },
   { timestamps: true }
 );

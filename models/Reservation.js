@@ -32,7 +32,6 @@ const reservedRoomSchema = new mongoose.Schema({
 
   nights: {
     type: Number,
-    required: true,
     min: 1
   },
 
@@ -99,77 +98,120 @@ const reservationSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 
-// ----------------- Pre-save Middleware ----------------- //
 reservationSchema.pre('save', async function (next) {
 
+  try {
 
-     // 🔥 Prevent double booking
+    // =============================
+    // ✅ 1. Validate & Calculate Nights
+    // =============================
+    if (!this.checkIn || !this.checkOut) {
+      return next(new Error("Check-in and Check-out dates are required"));
+    }
+
+    const checkInDate = new Date(this.checkIn);
+    const checkOutDate = new Date(this.checkOut);
+
+    checkInDate.setHours(0,0,0,0);
+    checkOutDate.setHours(0,0,0,0);
+
+    if (checkOutDate <= checkInDate) {
+      return next(new Error("Check-out must be after check-in"));
+    }
+
+    const diffTime = checkOutDate - checkInDate;
+    const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (nights < 1) {
+      return next(new Error("Stay must be at least 1 night"));
+    }
+
+    // Assign nights to all rooms
+    this.rooms.forEach(room => {
+      room.nights = nights;
+    });
+
+
+    // =============================
+    // ✅ 2. Prevent Double Booking
+    // =============================
     for (const r of this.rooms) {
 
       const overlappingReservation = await mongoose.model('Reservation').findOne({
-        _id: { $ne: this._id }, // exclude current reservation (important for updates)
-
+        _id: { $ne: this._id },
         "rooms.room": r.room,
-
         status: { $ne: "canceled" },
-
         checkIn: { $lt: this.checkOut },
         checkOut: { $gt: this.checkIn }
       });
 
       if (overlappingReservation) {
-        return next(
-          new Error(`Room is already reserved for the selected dates`)
-        );
+        return next(new Error(`Room is already reserved for the selected dates`));
       }
     }
 
-  let roomsTotal = 0;
 
-  for (const r of this.rooms) {
-    if (!r.perDay || r.perDay < 0)
-      return next(new Error(`Per day price is required for room ${r.room}`));
+    // =============================
+    // ✅ 3. Calculate Room Totals
+    // =============================
+    let roomsTotal = 0;
 
-    if (!r.nights || r.nights < 1)
-      return next(new Error(`Nights must be at least 1 for room ${r.room}`));
+    for (const r of this.rooms) {
 
-    // 🔥 Get package price
-    const packageDoc = await mongoose
-      .model('Packages')
-      .findById(r.package);
+      if (!r.perDay || r.perDay < 0)
+        return next(new Error(`Per day price is required for room ${r.room}`));
 
-    if (!packageDoc)
-      return next(new Error(`Package not found for room ${r.room}`));
+      const packageDoc = await mongoose
+        .model('Packages')
+        .findById(r.package);
 
-    const packagePrice = packageDoc.price || 0;
+      if (!packageDoc)
+        return next(new Error(`Package not found for room ${r.room}`));
 
-    // Room total = (perDay * nights) + package price
-    r.total = (r.perDay * r.nights) + packagePrice;
-    roomsTotal += r.total;
-  }
+      const packagePrice = packageDoc.price || 0;
 
-  // Reservation-level services
-  let servicesTotal = 0;
-  if (this.services?.length) {
-    const servicesDocs = await mongoose
-      .model('Services')
-      .find({ _id: { $in: this.services } });
+      r.total = (r.perDay * r.nights) + packagePrice;
+      roomsTotal += r.total;
+    }
 
-    servicesTotal = servicesDocs.reduce(
-      (sum, s) => sum + (s.price || 0),
+
+    // =============================
+    // ✅ 4. Calculate Services
+    // =============================
+    let servicesTotal = 0;
+
+    if (this.services?.length) {
+      const servicesDocs = await mongoose
+        .model('Services')
+        .find({ _id: { $in: this.services } });
+
+      servicesTotal = servicesDocs.reduce(
+        (sum, s) => sum + (s.price || 0),
+        0
+      );
+    }
+
+
+    // =============================
+    // ✅ 5. Final Totals
+    // =============================
+    this.totalAmount = roomsTotal + servicesTotal;
+
+    this.paidAmount = this.payments.reduce(
+      (sum, p) => sum + (p.amount || 0),
       0
     );
+
+    this.remainingAmount = this.totalAmount - this.paidAmount;
+
+    next();
+
+  } catch (error) {
+    next(error);
   }
 
-  this.totalAmount = roomsTotal + servicesTotal;
-  this.paidAmount = this.payments.reduce(
-    (sum, p) => sum + (p.amount || 0),
-    0
-  );
-  this.remainingAmount = this.totalAmount - this.paidAmount;
-
-  next();
 });
+
 
 
 

@@ -45,11 +45,6 @@ exports.createReservationValidator = [
     .withMessage("Room ID is required")
     .isMongoId()
     .withMessage("Invalid room ID format"),
-  body("rooms.*.nights")
-    .notEmpty()
-    .withMessage("Number of nights is required")
-    .isInt({ min: 1 })
-    .withMessage("Nights must be at least 1"),
   body("rooms.*.perDay")
     .notEmpty()
     .withMessage("Per day price is required")

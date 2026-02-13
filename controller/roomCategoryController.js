@@ -1,40 +1,96 @@
 const asyncHandler = require('express-async-handler');
-
-const factory = require('./handlersFactoryController');
 const ApiError = require('../utils/apiError');
+const RoomCategory = require('../models/roomCategoryModel');
 
-const roomCategory = require('../models/roomCategoryModel');
+// @desc    Get all room categories for specific hotel
+// @route   GET /api/v1/room-categories
+// @access  Private/Admin (Hotel Scoped)
+exports.getAllRoomCategory = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
 
+  if (!hotelId) {
+    return next(new ApiError('User is not linked to any hotel', 400));
+  }
 
+  const categories = await RoomCategory.find({ hotel: hotelId });
 
+  res.status(200).json({
+    results: categories.length,
+    data: categories,
+  });
+});
 
-// @desc    Get list of users
-// @route   GET /api/v1/users
+// @desc    Get specific room category (only from same hotel)
+exports.getRoomCategory = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
+
+  const category = await RoomCategory.findOne({
+    _id: req.params.id,
+    hotel: hotelId,
+  });
+
+  if (!category) {
+    return next(new ApiError('Room category not found for this hotel', 404));
+  }
+
+  res.status(200).json({
+    data: category,
+  });
+});
+
+// @desc    Create room category for logged-in hotel
+// @route   POST /api/v1/room-categories
 // @access  Private/Admin
-exports.getAllRoomCategory = factory.getAll(roomCategory);
+exports.createRoomCategory = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
 
-// @desc    Get specific user by id
-// @route   GET /api/v1/users/:id
-// @access  Private/Admin
-exports.getRoomCategory = factory.getOne(roomCategory);
+  if (!hotelId) {
+    return next(new ApiError('User is not linked to any hotel', 400));
+  }
 
-// @desc    Create user
-// @route   POST  /api/v1/users
-// @access  Private/Admin
-// exports.createHotel = factory.createOne(Hotel);
+  // Attach hotel automatically
+  req.body.hotel = hotelId;
 
-// @desc    Update specific user
-// @route   PUT /api/v1/users/:id
-// @access  Private/Admin
-exports.updateRoomCategory = factory.updateOne(roomCategory);
+  const category = await RoomCategory.create(req.body);
 
-// @desc    Delete specific user
-// @route   DELETE /api/v1/users/:id
-// @access  Private/Admin
-exports.deleteRoomCategory = factory.deleteOne(roomCategory);
+  res.status(201).json({
+    success: true,
+    data: category,
+  });
+});
 
+// @desc    Update room category (hotel protected)
+exports.updateRoomCategory = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
 
-exports.createRoomCategory = factory.createOne(roomCategory)
+  const category = await RoomCategory.findOneAndUpdate(
+    { _id: req.params.id, hotel: hotelId },
+    req.body,
+    { new: true, runValidators: true }
+  );
 
+  if (!category) {
+    return next(new ApiError('Room category not found or not authorized', 404));
+  }
 
+  res.status(200).json({
+    success: true,
+    data: category,
+  });
+});
 
+// @desc    Delete room category (only same hotel)
+exports.deleteRoomCategory = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
+
+  const category = await RoomCategory.findOneAndDelete({
+    _id: req.params.id,
+    hotel: hotelId,
+  });
+
+  if (!category) {
+    return next(new ApiError('Room category not found or not authorized', 404));
+  }
+
+  res.status(204).send();
+});

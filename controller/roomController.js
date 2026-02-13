@@ -8,33 +8,98 @@ const Room = require('../models/roomModel');
 
 
 
-// @desc    Get list of users
-// @route   GET /api/v1/users
+// @desc    Get list of rooms (for specific hotel)
+// @route   GET /api/v1/rooms
 // @access  Private/Admin
-exports.getRooms = factory.getAll(Room);
+exports.getRooms = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
 
-// @desc    Get specific user by id
-// @route   GET /api/v1/users/:id
+  if (!hotelId) {
+    return next(new ApiError('User is not linked to any hotel', 400));
+  }
+
+  const rooms = await Room.find({ hotel: hotelId });
+
+  res.status(200).json({
+    results: rooms.length,
+    data: rooms,
+  });
+});
+
+// @desc    Get specific room by id (hotel protected)
+exports.getRoom = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
+
+  const room = await Room.findOne({
+    _id: req.params.id,
+    hotel: hotelId,
+  });
+
+  if (!room) {
+    return next(new ApiError('Room not found for this hotel', 404));
+  }
+
+  res.status(200).json({
+    data: room,
+  });
+});
+
+// @desc    Create room for logged-in hotel
+// @route   POST /api/v1/rooms
 // @access  Private/Admin
-exports.getRoom = factory.getOne(Room);
+exports.createRoom = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
 
-// @desc    Create user
-// @route   POST  /api/v1/users
-// @access  Private/Admin
-// exports.createHotel = factory.createOne(Hotel);
+  if (!hotelId) {
+    return next(new ApiError('User is not linked to any hotel', 400));
+  }
 
-// @desc    Update specific user
-// @route   PUT /api/v1/users/:id
-// @access  Private/Admin
-exports.updateRoom = factory.updateOne(Room);
+  // Never trust frontend
+  req.body.hotel = hotelId;
 
-// @desc    Delete specific user
-// @route   DELETE /api/v1/users/:id
-// @access  Private/Admin
-exports.deleteRoom = factory.deleteOne(Room);
+  const room = await Room.create(req.body);
 
+  res.status(201).json({
+    success: true,
+    data: room,
+  });
+});
 
-exports.createRoom = factory.createOne(Room)
+// @desc    Update specific room (only same hotel)
+exports.updateRoom = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
+
+  const room = await Room.findOneAndUpdate(
+    { _id: req.params.id, hotel: hotelId },
+    req.body,
+    { new: true, runValidators: true }
+  );
+
+  if (!room) {
+    return next(new ApiError('Room not found or not authorized', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    data: room,
+  });
+});
+
+// @desc    Delete specific room (hotel protected)
+exports.deleteRoom = asyncHandler(async (req, res, next) => {
+  const hotelId = req.user.hotel;
+
+  const room = await Room.findOneAndDelete({
+    _id: req.params.id,
+    hotel: hotelId,
+  });
+
+  if (!room) {
+    return next(new ApiError('Room not found or not authorized', 404));
+  }
+
+  res.status(204).send();
+});
 
 const Hotel = require('../models/hotelModel');
 
