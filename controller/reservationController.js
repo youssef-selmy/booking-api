@@ -171,3 +171,128 @@ exports.getAvailableRooms = async (req, res) => {
 };
 
 
+
+
+
+
+
+exports.getHotelReservations = async (req, res) => {
+  try {
+    const hotelId = req.user.hotel;
+    const {
+      guest,
+      status,
+      stayStatus,
+      fromDate,
+      toDate,
+      minRooms,
+      maxRooms,
+      minNights,
+      maxNights
+    } = req.query;
+
+    if (!hotelId) {
+      return res.status(403).json({
+        success: false,
+        message: "Hotel ID not found in token"
+      });
+    }
+
+    // =============================
+    // 1️⃣ Build base DB filter
+    // =============================
+    const dbFilter = {};
+
+    if (status) dbFilter.status = status;
+    if (stayStatus) dbFilter.stayStatus = stayStatus;
+
+    if (fromDate || toDate) {
+      dbFilter.checkIn = {};
+      if (fromDate) dbFilter.checkIn.$gte = new Date(fromDate);
+      if (toDate) dbFilter.checkIn.$lte = new Date(toDate);
+    }
+
+    // =============================
+    // 2️⃣ Fetch & populate rooms
+    // =============================
+    const reservations = await Reservation.find(dbFilter)
+      .populate({
+        path: "rooms.room",
+        match: { hotel: hotelId },
+        select: "hotel"
+      })
+      .lean();
+
+    // =============================
+    // 3️⃣ Keep only hotel reservations
+    // =============================
+    let hotelReservations = reservations.filter(r =>
+      r.rooms.some(room => room.room !== null)
+    );
+
+    // =============================
+    // 4️⃣ In-memory filters (response-based)
+    // =============================
+
+    // Guest name filter
+    if (guest) {
+      const g = guest.toLowerCase();
+      hotelReservations = hotelReservations.filter(r =>
+        `${r.mainGuest.firstName} ${r.mainGuest.lastName}`
+          .toLowerCase()
+          .includes(g)
+      );
+    }
+
+    // Rooms count
+    if (minRooms || maxRooms) {
+      hotelReservations = hotelReservations.filter(r => {
+        const roomsCount = r.rooms.filter(room => room.room !== null).length;
+        if (minRooms && roomsCount < Number(minRooms)) return false;
+        if (maxRooms && roomsCount > Number(maxRooms)) return false;
+        return true;
+      });
+    }
+
+    // Nights count
+    if (minNights || maxNights) {
+      hotelReservations = hotelReservations.filter(r => {
+        const nights = r.rooms?.[0]?.nights || 0;
+        if (minNights && nights < Number(minNights)) return false;
+        if (maxNights && nights > Number(maxNights)) return false;
+        return true;
+      });
+    }
+
+    // =============================
+    // 5️⃣ Final response formatting
+    // =============================
+    const result = hotelReservations.map(r => {
+      const hotelRooms = r.rooms.filter(room => room.room !== null);
+
+      return {
+        confirmationNumber: r._id,
+        mainGuestName: `${r.mainGuest.firstName} ${r.mainGuest.lastName}`,
+        travelAgent: r.travelAgent || "-",
+        roomsCount: hotelRooms.length,
+        arriveDate: r.checkIn,
+        reservedNights: r.rooms?.[0]?.nights || 0,
+        status: r.status,
+        stayStatus: r.stayStatus
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: result.length,
+      data: result
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+};

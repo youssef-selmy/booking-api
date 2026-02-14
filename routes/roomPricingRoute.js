@@ -1,6 +1,10 @@
 const express = require("express");
+const authController = require("../controller/authController");
 
 const router = express.Router();
+
+
+
 
 const {
   createPricing,
@@ -10,6 +14,8 @@ const {
   deletePricing,
 } = require("../controller/pricingController");
 
+
+router.use(authController.protect);
 router
   .route("/")
   .post(createPricing)

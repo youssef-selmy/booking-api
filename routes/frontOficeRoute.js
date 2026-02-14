@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const frontoffice = require("../controller/front-office");
+const authController = require("../controller/authController");
+router.use(authController.protect);
 
 router.get("/arrivals", frontoffice.getUpcomingArrivals);
 router.get("/departures", frontoffice.getDepartures);

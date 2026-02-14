@@ -98,9 +98,15 @@ const reservationSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 
-reservationSchema.pre('save', async function (next) {
-
+reservationSchema.pre("save", async function (next) {
   try {
+    // =============================
+    // 🔎 Detect booking-related changes
+    // =============================
+    const bookingFieldsChanged =
+      this.isModified("checkIn") ||
+      this.isModified("checkOut") ||
+      this.isModified("rooms");
 
     // =============================
     // ✅ 1. Validate & Calculate Nights
@@ -112,8 +118,8 @@ reservationSchema.pre('save', async function (next) {
     const checkInDate = new Date(this.checkIn);
     const checkOutDate = new Date(this.checkOut);
 
-    checkInDate.setHours(0,0,0,0);
-    checkOutDate.setHours(0,0,0,0);
+    checkInDate.setHours(0, 0, 0, 0);
+    checkOutDate.setHours(0, 0, 0, 0);
 
     if (checkOutDate <= checkInDate) {
       return next(new Error("Check-out must be after check-in"));
@@ -126,47 +132,56 @@ reservationSchema.pre('save', async function (next) {
       return next(new Error("Stay must be at least 1 night"));
     }
 
-    // Assign nights to all rooms
-    this.rooms.forEach(room => {
-      room.nights = nights;
-    });
-
-
-    // =============================
-    // ✅ 2. Prevent Double Booking
-    // =============================
-    for (const r of this.rooms) {
-
-      const overlappingReservation = await mongoose.model('Reservation').findOne({
-        _id: { $ne: this._id },
-        "rooms.room": r.room,
-        status: { $ne: "canceled" },
-        checkIn: { $lt: this.checkOut },
-        checkOut: { $gt: this.checkIn }
+    // Assign nights only if booking data changed
+    if (bookingFieldsChanged) {
+      this.rooms.forEach(room => {
+        room.nights = nights;
       });
+    }
 
-      if (overlappingReservation) {
-        return next(new Error(`Room is already reserved for the selected dates`));
+    // =============================
+    // 🚫 2. Prevent Double Booking (ONLY when needed)
+    // =============================
+    if (bookingFieldsChanged) {
+      for (const r of this.rooms) {
+        const overlappingReservation =
+          await mongoose.model("Reservation").findOne({
+            _id: { $ne: this._id }, // 🔥 exclude self
+            "rooms.room": r.room,
+            status: { $ne: "canceled" },
+            checkIn: { $lt: this.checkOut },
+            checkOut: { $gt: this.checkIn }
+          });
+
+        if (overlappingReservation) {
+          return next(
+            new Error("Room is already reserved for the selected dates")
+          );
+        }
       }
     }
 
-
     // =============================
-    // ✅ 3. Calculate Room Totals
+    // 💰 3. Calculate Room Totals
     // =============================
     let roomsTotal = 0;
 
     for (const r of this.rooms) {
-
-      if (!r.perDay || r.perDay < 0)
-        return next(new Error(`Per day price is required for room ${r.room}`));
+      if (!r.perDay || r.perDay < 0) {
+        return next(
+          new Error(`Per day price is required for room ${r.room}`)
+        );
+      }
 
       const packageDoc = await mongoose
-        .model('Packages')
+        .model("Packages")
         .findById(r.package);
 
-      if (!packageDoc)
-        return next(new Error(`Package not found for room ${r.room}`));
+      if (!packageDoc) {
+        return next(
+          new Error(`Package not found for room ${r.room}`)
+        );
+      }
 
       const packagePrice = packageDoc.price || 0;
 
@@ -174,15 +189,14 @@ reservationSchema.pre('save', async function (next) {
       roomsTotal += r.total;
     }
 
-
     // =============================
-    // ✅ 4. Calculate Services
+    // 🛎 4. Calculate Services
     // =============================
     let servicesTotal = 0;
 
     if (this.services?.length) {
       const servicesDocs = await mongoose
-        .model('Services')
+        .model("Services")
         .find({ _id: { $in: this.services } });
 
       servicesTotal = servicesDocs.reduce(
@@ -191,9 +205,8 @@ reservationSchema.pre('save', async function (next) {
       );
     }
 
-
     // =============================
-    // ✅ 5. Final Totals
+    // 📊 5. Final Totals
     // =============================
     this.totalAmount = roomsTotal + servicesTotal;
 
@@ -205,11 +218,9 @@ reservationSchema.pre('save', async function (next) {
     this.remainingAmount = this.totalAmount - this.paidAmount;
 
     next();
-
   } catch (error) {
     next(error);
   }
-
 });
 
 

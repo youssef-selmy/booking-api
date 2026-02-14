@@ -16,6 +16,10 @@ const {
   deleteServiceValidator,
 } = require('../utils/validators/servicesValidator');
 
+
+const authController = require("../controller/authController");
+
+router.use(authController.protect);
 router
   .route('/')
   .post(createServiceValidator, createService)

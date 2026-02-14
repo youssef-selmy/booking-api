@@ -21,7 +21,7 @@ router.post(
 // Get all reservations
 router.get(
     '/',
-    reservationController.getReservations
+    reservationController.getHotelReservations
 );
 
 
@@ -42,7 +42,6 @@ router.get(
 // Update reservation
 router.put(
     '/:id',
-    reservationValidator.updateReservationValidator,
     reservationController.updateReservation
 );
 
