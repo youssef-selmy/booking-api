@@ -12,6 +12,8 @@ exports.getUpcomingArrivals = async (req, res) => {
 
     const reservations = await Reservation.find({
       checkIn: { $gte: today, $lt: fiveDaysLater },
+      stayStatus: "reserved",          // 🔥 KEY FIX
+      status: { $ne: "canceled" },  
       "rooms.room.hotel": hotelId
     })
       .select("mainGuest rooms checkIn travelAgent")
@@ -52,6 +54,8 @@ exports.getDepartures = async (req, res) => {
 
     const reservations = await Reservation.find({
       checkOut: { $gte: today, $lte: fiveDaysLater },
+            stayStatus: "checked-in",          // 🔥 IMPORTANT
+            status: { $ne: "canceled" },       // 🔒 safety
       "rooms.room.hotel": hotelId
     })
       .select("mainGuest rooms remainingAmount checkOut")
@@ -86,6 +90,7 @@ exports.getInHouse = async (req, res) => {
       checkIn: { $lte: today },
       checkOut: { $gt: today },
       stayStatus: "checked-in",
+       status: { $ne: "canceled" },
       "rooms.room.hotel": hotelId
     })
       .select("mainGuest rooms remainingAmount checkOut")
