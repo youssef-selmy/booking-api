@@ -158,15 +158,6 @@ body("rooms.*.perDay")
     .isMongoId()
     .withMessage("Invalid service ID"),
 
-  // Reservation-level packages
-  body("packages")
-    .optional()
-    .isArray()
-    .withMessage("Packages must be an array of IDs"),
-  body("packages.*")
-    .optional()
-    .isMongoId()
-    .withMessage("Invalid package ID"),
 
   // Payments
   body("payments")
