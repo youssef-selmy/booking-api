@@ -149,8 +149,9 @@ exports.getNoShow = async (req, res) => {
 exports.checkIn = async (req, res) => {
   try {
     const { id } = req.params;
+    const { hotelId } = req.user;
 
-    const reservation = await Reservation.findById(id);
+    const reservation = await Reservation.findById(id).populate("rooms.room");
 
     if (!reservation)
       return res.status(404).json({ message: "Reservation not found" });
@@ -161,6 +162,14 @@ exports.checkIn = async (req, res) => {
     if (reservation.stayStatus !== "reserved")
       return res.status(400).json({ message: "Already checked in or completed" });
 
+    // 🔐 Hotel ownership check
+    const belongsToHotel = reservation.rooms.some(
+      r => r.room.hotel.toString() === hotelId
+    );
+
+    if (!belongsToHotel)
+      return res.status(403).json({ message: "Unauthorized hotel" });
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -169,6 +178,13 @@ exports.checkIn = async (req, res) => {
 
     reservation.stayStatus = "checked-in";
     reservation.status = "confirmed";
+    // reservation.actualCheckIn = new Date();
+
+    // 🏨 update rooms
+    reservation.rooms.forEach(r => {
+      r.room.status = "occupied";
+      r.room.save();
+    });
 
     await reservation.save();
 
@@ -184,8 +200,9 @@ exports.checkIn = async (req, res) => {
 exports.checkOut = async (req, res) => {
   try {
     const { id } = req.params;
+    const { hotelId } = req.user;
 
-    const reservation = await Reservation.findById(id);
+    const reservation = await Reservation.findById(id).populate("rooms.room");
 
     if (!reservation)
       return res.status(404).json({ message: "Reservation not found" });
@@ -193,11 +210,25 @@ exports.checkOut = async (req, res) => {
     if (reservation.stayStatus !== "checked-in")
       return res.status(400).json({ message: "Guest is not checked in" });
 
+    const belongsToHotel = reservation.rooms.some(
+      r => r.room.hotel.toString() === hotelId
+    );
+
+    if (!belongsToHotel)
+      return res.status(403).json({ message: "Unauthorized hotel" });
+
     if (reservation.remainingAmount > 0)
       return res.status(400).json({ message: "Outstanding balance must be paid before checkout" });
 
     reservation.stayStatus = "checked-out";
+    reservation.status = "completed";
     // reservation.actualCheckOut = new Date();
+
+    // 🏨 free rooms
+    reservation.rooms.forEach(r => {
+      r.room.status = "available";
+      r.room.save();
+    });
 
     await reservation.save();
 
