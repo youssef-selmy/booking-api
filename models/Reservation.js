@@ -195,16 +195,23 @@ reservationSchema.pre("save", async function (next) {
     // =============================
     let roomsTotal = 0;
 
-    for (const r of this.rooms) {
-      const packageDoc = await mongoose
-        .model("Packages")
-        .findById(r.package);
+for (const r of this.rooms) {
+  let packagePrice = 0;
 
-    
+  // لو فيه package فقط
+  if (r.package) {
+    const packageDoc = await mongoose
+      .model("Packages")
+      .findById(r.package)
+      .select("price");
 
-      r.total = (r.perDay * r.nights) + (packageDoc.price || 0);
-      roomsTotal += r.total;
-    }
+    packagePrice = packageDoc?.price || 0; // 🔥 الحل هنا
+  }
+
+  r.total = (r.perDay * r.nights) + packagePrice;
+  roomsTotal += r.total;
+}
+
 
     let servicesTotal = 0;
     if (this.services?.length) {
