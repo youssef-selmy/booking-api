@@ -142,6 +142,13 @@ exports.getNoShow = async (req, res) => {
 };
 
 
+const normalizeDate = (date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+
 
 
 
@@ -170,12 +177,11 @@ exports.checkIn = async (req, res) => {
     if (!belongsToHotel)
       return res.status(403).json({ message: "Unauthorized hotel" });
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+   const today = normalizeDate(new Date());
+    const checkInDate = normalizeDate(reservation.checkIn);
 
-    if (reservation.checkIn > today)
+    if (checkInDate > today)
       return res.status(400).json({ message: "Check-in date not reached yet" });
-
     reservation.stayStatus = "checked-in";
     reservation.status = "confirmed";
     // reservation.actualCheckIn = new Date();
