@@ -101,12 +101,31 @@ const reservationSchema = new mongoose.Schema({
 reservationSchema.pre("save", async function (next) {
   try {
     // =============================
-    // 🔎 Detect booking-related changes
+    // 🔎 Detect REAL booking changes
     // =============================
+
+    const checkInChanged = this.isModified("checkIn");
+    const checkOutChanged = this.isModified("checkOut");
+
+    let roomsChanged = false;
+
+    if (this.isModified("rooms")) {
+      const original = this.$__.priorDoc;
+
+      if (original) {
+        const oldRoomIds = original.rooms.map(r => r.room.toString());
+        const newRoomIds = this.rooms.map(r => r.room.toString());
+
+        roomsChanged =
+          oldRoomIds.length !== newRoomIds.length ||
+          oldRoomIds.some((id, i) => id !== newRoomIds[i]);
+      } else {
+        roomsChanged = true; // new document
+      }
+    }
+
     const bookingFieldsChanged =
-      this.isModified("checkIn") ||
-      this.isModified("checkOut") ||
-      this.isModified("rooms");
+      checkInChanged || checkOutChanged || roomsChanged;
 
     // =============================
     // ✅ 1. Validate & Calculate Nights
@@ -125,14 +144,14 @@ reservationSchema.pre("save", async function (next) {
       return next(new Error("Check-out must be after check-in"));
     }
 
-    const diffTime = checkOutDate - checkInDate;
-    const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const nights = Math.ceil(
+      (checkOutDate - checkInDate) / (1000 * 60 * 60 * 24)
+    );
 
     if (nights < 1) {
       return next(new Error("Stay must be at least 1 night"));
     }
 
-    // Assign nights only if booking data changed
     if (bookingFieldsChanged) {
       this.rooms.forEach(room => {
         room.nights = nights;
@@ -146,7 +165,7 @@ reservationSchema.pre("save", async function (next) {
       for (const r of this.rooms) {
         const overlappingReservation =
           await mongoose.model("Reservation").findOne({
-            _id: { $ne: this._id }, // 🔥 exclude self
+            _id: { $ne: this._id },
             "rooms.room": r.room,
             status: { $ne: "canceled" },
             checkIn: { $lt: this.checkOut },
@@ -162,38 +181,24 @@ reservationSchema.pre("save", async function (next) {
     }
 
     // =============================
-    // 💰 3. Calculate Room Totals
+    // 💰 3. Calculate Totals (safe always)
     // =============================
     let roomsTotal = 0;
 
     for (const r of this.rooms) {
-      if (!r.perDay || r.perDay < 0) {
-        return next(
-          new Error(`Per day price is required for room ${r.room}`)
-        );
-      }
-
       const packageDoc = await mongoose
         .model("Packages")
         .findById(r.package);
 
       if (!packageDoc) {
-        return next(
-          new Error(`Package not found for room ${r.room}`)
-        );
+        return next(new Error(`Package not found for room ${r.room}`));
       }
 
-      const packagePrice = packageDoc.price || 0;
-
-      r.total = (r.perDay * r.nights) + packagePrice;
+      r.total = (r.perDay * r.nights) + (packageDoc.price || 0);
       roomsTotal += r.total;
     }
 
-    // =============================
-    // 🛎 4. Calculate Services
-    // =============================
     let servicesTotal = 0;
-
     if (this.services?.length) {
       const servicesDocs = await mongoose
         .model("Services")
@@ -205,16 +210,11 @@ reservationSchema.pre("save", async function (next) {
       );
     }
 
-    // =============================
-    // 📊 5. Final Totals
-    // =============================
     this.totalAmount = roomsTotal + servicesTotal;
-
     this.paidAmount = this.payments.reduce(
       (sum, p) => sum + (p.amount || 0),
       0
     );
-
     this.remainingAmount = this.totalAmount - this.paidAmount;
 
     next();

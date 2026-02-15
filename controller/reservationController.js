@@ -27,6 +27,18 @@ exports.updateReservation = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Reservation not found", 404));
   }
 
+  // =============================
+  // ✅ Update dates (IMPORTANT)
+  // =============================
+  if (req.body.checkIn) {
+    reservation.checkIn = new Date(req.body.checkIn);
+  }
+
+  if (req.body.checkOut) {
+    reservation.checkOut = new Date(req.body.checkOut);
+  }
+
+
   // Update main guest
   if (req.body.mainGuest) {
     reservation.mainGuest.firstName = req.body.mainGuest.firstName ?? reservation.mainGuest.firstName;
