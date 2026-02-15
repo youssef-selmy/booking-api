@@ -43,8 +43,8 @@ const reservedRoomSchema = new mongoose.Schema({
 
   package: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Packages',
-    required: true   // 🔥 ONE package per room
+    ref: 'Packages'
+   // 🔥 ONE package per room
   },
   //   type: {
   //   type: mongoose.Schema.Types.ObjectId,
