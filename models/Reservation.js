@@ -46,6 +46,16 @@ const reservedRoomSchema = new mongoose.Schema({
     ref: 'Packages',
     required: true   // 🔥 ONE package per room
   },
+  //   type: {
+  //   type: mongoose.Schema.Types.ObjectId,
+  //   ref: 'RoomType',
+  //   required: true   // 🔥 ONE package per room
+  // },
+  //     category: {
+  //   type: mongoose.Schema.Types.ObjectId,
+  //   ref: 'RoomCategory',
+  //   required: true   // 🔥 ONE package per room
+  // },
 
   total: {
     type: Number,
@@ -229,21 +239,30 @@ reservationSchema.pre("save", async function (next) {
 // ----------------- Auto-populate Middleware ----------------- //
 function autoPopulateReservation(next) {
   this.populate({
-    path: 'rooms.room',
+    path: "rooms.room",
     populate: [
-      { path: 'category', model: 'RoomCategory' },
-      { path: 'type', model: 'RoomType' }
+      {
+        path: "type",
+        model: "RoomType"
+      },
+      {
+        path: "category",
+        model: "RoomCategory"
+      }
     ]
   })
-  .populate('rooms.package') // 🔥 per-room package
-  .populate('services');
+  .populate({
+    path: "rooms.package",
+    model: "Packages"
+  })
+  .populate("services");
 
   next();
 }
 
-reservationSchema.pre('find', autoPopulateReservation);
-reservationSchema.pre('findOne', autoPopulateReservation);
-reservationSchema.pre('findById', autoPopulateReservation);
+reservationSchema.pre("find", autoPopulateReservation);
+reservationSchema.pre("findOne", autoPopulateReservation);
+reservationSchema.pre("findById", autoPopulateReservation);
 
 
 module.exports = mongoose.model('Reservation', reservationSchema);

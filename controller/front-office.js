@@ -2,59 +2,38 @@ const Reservation = require("../models/Reservation");
 
 exports.getUpcomingArrivals = async (req, res) => {
   try {
-    // ✅ Today (start of day)
+    const { hotelId } = req.user; // ✅ from token
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // ✅ 5 days from today
     const fiveDaysLater = new Date(today);
     fiveDaysLater.setDate(fiveDaysLater.getDate() + 6);
 
-    const arrivals = await Reservation.find({
-      checkIn: {
-        $gte: today,
-        $lt: fiveDaysLater
-      },
-    
+    const reservations = await Reservation.find({
+      checkIn: { $gte: today, $lt: fiveDaysLater },
+      "rooms.room.hotel": hotelId
     })
-      .populate({
-        path: "rooms.room",
-        select: "roomNumber"
-      })
+      .select("mainGuest rooms checkIn travelAgent")
       .lean();
 
-    const formatted = arrivals.flatMap(reservation => {
-
-      return reservation.rooms.map(room => {
-
-        const nights = room.nights;
-
-        return {
-          id: reservation._id,
-          name: `${reservation.mainGuest.firstName} ${reservation.mainGuest.lastName}`,
-          idNumber: reservation.mainGuest.idNumber || "N/A",
-          room: room.room?.roomNumber || "N/A",
-          nights,
-          arrivalDate: new Date(reservation.checkIn)
-            .toLocaleDateString("en-GB")
-        };
-      });
-
-    });
+    const data = reservations.map(r => ({
+      confirmationNumber: r._id,
+      mainGuestName: `${r.mainGuest.firstName} ${r.mainGuest.lastName}`,
+      travelAgent: r.travelAgent || "N/A",
+      roomsCount: r.rooms.length,
+      arriveDate: r.checkIn.toLocaleDateString("en-GB"),
+      reservedNights: r.rooms[0]?.nights || 0
+    }));
 
     res.status(200).json({
       status: "success",
-      from: today,
-      to: fiveDaysLater,
-      results: formatted.length,
-      data: formatted
+      count: data.length,
+      data
     });
 
   } catch (err) {
-    res.status(500).json({
-      status: "error",
-      message: err.message
-    });
+    res.status(500).json({ status: "error", message: err.message });
   }
 };
 
@@ -62,46 +41,35 @@ exports.getUpcomingArrivals = async (req, res) => {
 
 exports.getDepartures = async (req, res) => {
   try {
+    const { hotelId } = req.user;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const fiveDaysLater = new Date();
-    fiveDaysLater.setDate(today.getDate() + 6);
+    const fiveDaysLater = new Date(today);
+    fiveDaysLater.setDate(fiveDaysLater.getDate() + 6);
     fiveDaysLater.setHours(23, 59, 59, 999);
 
     const reservations = await Reservation.find({
-      checkOut: {
-        $gte: today,
-        $lte: fiveDaysLater
-      },
-      
-    });
+      checkOut: { $gte: today, $lte: fiveDaysLater },
+      "rooms.room.hotel": hotelId
+    })
+      .select("mainGuest rooms remainingAmount checkOut")
+      .lean();
 
-    const departures = [];
+    const data = reservations.map(r => ({
+      confirmationNumber: r._id,
+      mainGuestName: `${r.mainGuest.firstName} ${r.mainGuest.lastName}`,
+      roomsCount: r.rooms.length,
+      reservedNights: r.rooms[0]?.nights || 0,
+      remaining: r.remainingAmount,
+      departureDate: r.checkOut.toLocaleDateString("en-GB")
+    }));
 
-    reservations.forEach(reservation => {
-      reservation.rooms.forEach(room => {
-        departures.push({
-          reservationId: reservation._id,
-          name: `${reservation.mainGuest.firstName} ${reservation.mainGuest.lastName}`,
-          roomNumber: room.room.roomNumber || room.room.number || "N/A",
-          nights: room.nights,
-          remaining: reservation.remainingAmount,
-          checkoutDate: reservation.checkOut
-        });
-      });
-    });
-
-    res.status(200).json({
-      count: departures.length,
-      departures
-    });
+    res.status(200).json({ count: data.length, data });
 
   } catch (err) {
-    res.status(500).json({
-      status: "error",
-      message: err.message
-    });
+    res.status(500).json({ status: "error", message: err.message });
   }
 };
 
@@ -109,81 +77,67 @@ exports.getDepartures = async (req, res) => {
 
 exports.getInHouse = async (req, res) => {
   try {
+    const { hotelId } = req.user;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const reservations = await Reservation.find({
       checkIn: { $lte: today },
       checkOut: { $gt: today },
-      
-    });
+      stayStatus: "checked-in",
+      "rooms.room.hotel": hotelId
+    })
+      .select("mainGuest rooms remainingAmount checkOut")
+      .lean();
 
-    const inHouse = [];
+    const data = reservations.map(r => ({
+      confirmationNumber: r._id,
+      mainGuestName: `${r.mainGuest.firstName} ${r.mainGuest.lastName}`,
+      roomsCount: r.rooms.length,
+      reservedNights: r.rooms[0]?.nights || 0,
+      remaining: r.remainingAmount,
+      departureDate: r.checkOut.toLocaleDateString("en-GB")
+    }));
 
-    reservations.forEach(reservation => {
-      reservation.rooms.forEach(room => {
-        inHouse.push({
-          reservationId: reservation._id,
-          name: `${reservation.mainGuest.firstName} ${reservation.mainGuest.lastName}`,
-          roomNumber: room.room.roomNumber || room.room.number || "N/A",
-          nights: room.nights,
-          remaining: reservation.remainingAmount,
-          checkoutDate: reservation.checkOut
-        });
-      });
-    });
-
-    res.status(200).json({
-      count: inHouse.length,
-      inHouse
-    });
+    res.status(200).json({ count: data.length, data });
 
   } catch (err) {
-    res.status(500).json({
-      status: "error",
-      message: err.message
-    });
+    res.status(500).json({ status: "error", message: err.message });
   }
 };
 
 
 exports.getNoShow = async (req, res) => {
   try {
+    const { hotelId } = req.user;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-  const reservations = await Reservation.find({
+    const reservations = await Reservation.find({
       checkIn: { $lt: today },
-      stayStatus: "reserved",   // guest never checked in
-      status: { $ne: "canceled" } // exclude canceled bookings
-    }).lean();
+      stayStatus: "reserved",
+      status: { $ne: "canceled" },
+      "rooms.room.hotel": hotelId
+    })
+      .select("mainGuest rooms totalAmount paidAmount checkIn")
+      .lean();
 
-    const noShow = [];
+    const data = reservations.map(r => ({
+      confirmationNumber: r._id,
+      mainGuestName: `${r.mainGuest.firstName} ${r.mainGuest.lastName}`,
+      roomsCount: r.rooms.length,
+      reservedNights: r.rooms[0]?.nights || 0,
+      total: r.totalAmount,
+      paid: r.paidAmount,
+      arrivalDate: r.checkIn.toLocaleDateString("en-GB")
+    }));
 
-    reservations.forEach(reservation => {
-      reservation.rooms.forEach(room => {
-        noShow.push({
-          reservationId: reservation._id,
-          name: `${reservation.mainGuest.firstName} ${reservation.mainGuest.lastName}`,
-          roomNumber: room.room.roomNumber || "N/A",
-          nights: room.nights,
-          total: reservation.totalAmount,
-          paid: reservation.paidAmount,
-          checkInDate: reservation.checkIn
-        });
-      });
-    });
-
-    res.status(200).json({
-      count: noShow.length,
-      noShow
-    });
+    res.status(200).json({ count: data.length, data });
 
   } catch (err) {
-    res.status(500).json({
-      status: "error",
-      message: err.message
-    });
+    res.status(500).json({ status: "error", message: err.message });
   }
 };
 
@@ -243,7 +197,7 @@ exports.checkOut = async (req, res) => {
       return res.status(400).json({ message: "Outstanding balance must be paid before checkout" });
 
     reservation.stayStatus = "checked-out";
-    reservation.actualCheckOut = new Date();
+    // reservation.actualCheckOut = new Date();
 
     await reservation.save();
 
