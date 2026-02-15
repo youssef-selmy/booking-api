@@ -200,9 +200,7 @@ reservationSchema.pre("save", async function (next) {
         .model("Packages")
         .findById(r.package);
 
-      if (!packageDoc) {
-        return next(new Error(`Package not found for room ${r.room}`));
-      }
+    
 
       r.total = (r.perDay * r.nights) + (packageDoc.price || 0);
       roomsTotal += r.total;

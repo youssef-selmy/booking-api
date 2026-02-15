@@ -9,8 +9,8 @@ const PackageSchema = new mongoose.Schema(
     },
     price: {
       type: Number,
-      required: [true, "Packages is required"],
-      min: [0, "Packages must be positive"],
+      required: [true, "price is required"],
+      min: [0, "price must be positive"],
     },
     hotel: {
   type: mongoose.Schema.Types.ObjectId,
