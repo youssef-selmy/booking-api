@@ -14,7 +14,7 @@ router.get("/inhouse", frontoffice.getInHouse);
 router.get("/noshow", frontoffice.getNoShow);
 
 // 🏨 front office actions
-router.patch("/reservations/:id/check-in", frontoffice.checkIn);
-router.patch("/reservations/:id/check-out", frontoffice.checkOut);
+router.patch("/:id/check-in", frontoffice.checkIn);
+router.patch("/:id/check-out", frontoffice.checkOut);
 
 module.exports = router;
