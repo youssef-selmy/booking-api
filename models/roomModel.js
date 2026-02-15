@@ -5,7 +5,6 @@ const roomSchema = new mongoose.Schema(
     roomNumber: {
       type: String,
       required: true,
-      unique: true,
       trim: true
     },
 
@@ -70,6 +69,11 @@ const roomSchema = new mongoose.Schema(
     }
   },
   { timestamps: true }
+);
+/* 🔥 UNIQUE PER HOTEL */
+roomSchema.index(
+  { roomNumber: 1, hotel: 1 },
+  { unique: true }
 );
 roomSchema.set('toJSON', {
   transform: (doc, ret) => {
