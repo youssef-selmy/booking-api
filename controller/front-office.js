@@ -164,7 +164,7 @@ exports.checkIn = async (req, res) => {
 
     // 🔐 Hotel ownership check
     const belongsToHotel = reservation.rooms.some(
-      r => r.room.hotel.toString() === hotelId
+      r => r.hotel === hotelId
     );
 
     if (!belongsToHotel)
@@ -211,7 +211,7 @@ exports.checkOut = async (req, res) => {
       return res.status(400).json({ message: "Guest is not checked in" });
 
     const belongsToHotel = reservation.rooms.some(
-      r => r.room.hotel.toString() === hotelId
+      r => r.hotel === hotelId
     );
 
     if (!belongsToHotel)
