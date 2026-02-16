@@ -11,7 +11,8 @@ const normalizeDate = (date) => {
 
 exports.getUpcomingArrivals = async (req, res) => {
   try {
-    const { hotelId } = req.user; // ✅ from token
+    const hotelId = req.user.hotel;
+
 
     const today = new Date();
 today.setUTCHours(0, 0, 0, 0);
@@ -56,7 +57,8 @@ fiveDaysLater.setUTCHours(23, 59, 59, 999);
 
 exports.getDepartures = async (req, res) => {
   try {
-    const { hotelId } = req.user;
+    const hotelId = req.user.hotel;
+
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -95,7 +97,8 @@ exports.getDepartures = async (req, res) => {
 
 exports.getInHouse = async (req, res) => {
   try {
-    const { hotelId } = req.user;
+    const hotelId = req.user.hotel;
+
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -130,7 +133,8 @@ exports.getInHouse = async (req, res) => {
 
 exports.getNoShow = async (req, res) => {
   try {
-    const { hotelId } = req.user;
+    const hotelId = req.user.hotel;
+
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -172,7 +176,8 @@ exports.getNoShow = async (req, res) => {
 exports.checkIn = async (req, res) => {
   try {
     const { id } = req.params;
-    const { hotelId } = req.user;
+    const hotelId = req.user.hotel;
+
 
     const reservation = await Reservation.findById(id).populate("rooms.room");
 
@@ -218,7 +223,8 @@ exports.checkIn = async (req, res) => {
 exports.checkOut = async (req, res) => {
   try {
     const { id } = req.params;
-    const { hotelId } = req.user;
+    const hotelId = req.user.hotel;
+
 
     const reservation = await Reservation.findById(id).populate("rooms.room");
 
