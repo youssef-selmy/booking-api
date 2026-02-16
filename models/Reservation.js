@@ -159,17 +159,19 @@ reservationSchema.pre("save", async function (next) {
     checkInDate.setHours(0, 0, 0, 0);
     checkOutDate.setHours(0, 0, 0, 0);
 
-    if (checkOutDate <= checkInDate) {
+    if (checkOutDate < checkInDate) {
       return next(new Error("Check-out must be after check-in"));
     }
 
-    const nights = Math.ceil(
-      (checkOutDate - checkInDate) / (1000 * 60 * 60 * 24)
-    );
+  let nights = Math.ceil(
+  (checkOutDate - checkInDate) / (1000 * 60 * 60 * 24)
+);
 
-    if (nights < 1) {
-      return next(new Error("Stay must be at least 1 night"));
-    }
+// 🔥 Allow same-day stay as 1 billable night (hotel standard)
+if (nights === 0) {
+  nights = 1;
+}
+
 
     if (bookingFieldsChanged) {
       this.rooms.forEach(room => {
