@@ -13,10 +13,30 @@ exports.getReservations = factory.getAll(Reservation);
 // @access  Private/Admin
 exports.getReservation = factory.getOne(Reservation);
 
+
+
+
+
+
+exports.setHotelToBody = (req, res, next) => {
+  if (!req.user || !req.user.hotel) {
+    return next(new ApiError("Hotel not found in token", 403));
+  }
+
+  // 🔥 force hotel from token
+  req.body.hotel = req.user.hotel;
+
+  next();
+};
+
 // @desc    Create reservation
 // @route   POST /api/v1/reservations
 // @access  Private/Admin
-exports.createReservation = factory.createOne(Reservation);
+exports.createReservation = [
+  exports.setHotelToBody,
+  factory.createOne(Reservation)
+];
+
 
 // @desc    Update specific reservation
 // @route   PUT /api/v1/reservations/:id
@@ -109,11 +129,13 @@ exports.getAvailableRooms = async (req, res) => {
     const hotelId = req.user.hotel;
 
     // ✅ 1. Find overlapping reservations
-    const overlappingReservations = await Reservation.find({
-      hotel: hotelId,
-      checkIn: { $lt: endDate },
-      checkOut: { $gt: startDate }
-    }).select("rooms.room");
+  const overlappingReservations = await Reservation.find({
+  hotel: hotelId,
+  stayStatus: { $in: ["reserved", "checked-in"] },
+  status: { $ne: "canceled" },
+  checkIn: { $lt: endDate },
+  checkOut: { $gt: startDate }
+}).select("rooms.room");
 
     // ✅ 2. Extract booked room IDs safely
     const bookedRoomIds = [
@@ -213,7 +235,10 @@ exports.getHotelReservations = async (req, res) => {
     // =============================
     // 1️⃣ Build base DB filter
     // =============================
-    const dbFilter = {};
+  const dbFilter = {
+  hotel: hotelId
+};
+
 
     if (status) dbFilter.status = status;
     if (stayStatus) dbFilter.stayStatus = stayStatus;

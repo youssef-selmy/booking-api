@@ -23,7 +23,8 @@ exports.getUpcomingArrivals = async (req, res) => {
       checkIn: { $gte: today, $lt: fiveDaysLater },
       stayStatus: "reserved",          // 🔥 KEY FIX
       status: { $ne: "canceled" },  
-      "rooms.room.hotel": hotelId
+      hotel: hotelId
+
     })
       .select("mainGuest rooms checkIn travelAgent")
       .lean();
@@ -65,7 +66,8 @@ exports.getDepartures = async (req, res) => {
       checkOut: { $gte: today, $lte: fiveDaysLater },
             stayStatus: "checked-in",          // 🔥 IMPORTANT
             status: { $ne: "canceled" },       // 🔒 safety
-      "rooms.room.hotel": hotelId
+      hotel: hotelId
+
     })
       .select("mainGuest rooms remainingAmount checkOut")
       .lean();
@@ -100,7 +102,8 @@ exports.getInHouse = async (req, res) => {
       checkOut: { $gt: today },
       stayStatus: "checked-in",
        status: { $ne: "canceled" },
-      "rooms.room.hotel": hotelId
+      hotel: hotelId
+
     })
       .select("mainGuest rooms remainingAmount checkOut")
       .lean();
@@ -133,7 +136,8 @@ exports.getNoShow = async (req, res) => {
       checkIn: { $lt: today },
       stayStatus: "reserved",
       status: { $ne: "canceled" },
-      "rooms.room.hotel": hotelId
+      hotel: hotelId
+
     })
       .select("mainGuest rooms totalAmount paidAmount checkIn")
       .lean();
@@ -179,11 +183,7 @@ exports.checkIn = async (req, res) => {
       return res.status(400).json({ message: "Already checked in or completed" });
 
     // 🔐 Hotel ownership check
-    const belongsToHotel = reservation.rooms.some(
-      r => r.hotel === hotelId
-    );
-
-    if (!belongsToHotel)
+    if (reservation.hotel.toString() !== hotelId)
       return res.status(403).json({ message: "Unauthorized hotel" });
 
    const today = normalizeDate(new Date());
@@ -225,25 +225,25 @@ exports.checkOut = async (req, res) => {
     if (reservation.stayStatus !== "checked-in")
       return res.status(400).json({ message: "Guest is not checked in" });
 
-    const belongsToHotel = reservation.rooms.some(
-      r => r.hotel === hotelId
-    );
-
-    if (!belongsToHotel)
+   if (reservation.hotel.toString() !== hotelId)
       return res.status(403).json({ message: "Unauthorized hotel" });
 
     if (reservation.remainingAmount > 0)
       return res.status(400).json({ message: "Outstanding balance must be paid before checkout" });
-
+    const now = new Date();
     reservation.stayStatus = "checked-out";
     reservation.status = "completed";
+    reservation.checkOut = now;
     // reservation.actualCheckOut = new Date();
 
     // 🏨 free rooms
-    reservation.rooms.forEach(r => {
-      r.room.status = "available";
-      r.room.save();
-    });
+  await Promise.all(
+  reservation.rooms.map(r => {
+    r.room.status = "available";
+    return r.room.save();
+  })
+);
+
 
     await reservation.save();
 

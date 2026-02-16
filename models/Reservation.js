@@ -104,6 +104,12 @@ const reservationSchema = new mongoose.Schema({
   ],
   default: 'reserved'
 },
+hotel: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Hotel",
+  required: true,
+  index: true
+},
 
 // actualCheckIn: Date,
 // actualCheckOut: Date,
