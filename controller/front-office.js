@@ -14,10 +14,13 @@ exports.getUpcomingArrivals = async (req, res) => {
     const { hotelId } = req.user; // ✅ from token
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+today.setUTCHours(0, 0, 0, 0);
 
-    const fiveDaysLater = new Date(today);
-    fiveDaysLater.setDate(fiveDaysLater.getDate() + 6);
+
+  const fiveDaysLater = new Date(today);
+fiveDaysLater.setUTCDate(fiveDaysLater.getUTCDate() + 6);
+fiveDaysLater.setUTCHours(23, 59, 59, 999);
+
 
     const reservations = await Reservation.find({
       checkIn: { $gte: today, $lt: fiveDaysLater },
