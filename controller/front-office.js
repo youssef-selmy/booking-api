@@ -103,17 +103,13 @@ exports.getInHouse = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const reservations = await Reservation.find({
-      checkIn: { $lte: today },
-      checkOut: { $gt: today },
+     const reservations = await Reservation.find({
       stayStatus: "checked-in",
-       status: { $ne: "canceled" },
+      status: { $nin: ["canceled", "completed"] },
       hotel: hotelId
-
     })
       .select("mainGuest rooms remainingAmount checkOut")
       .lean();
-
     const data = reservations.map(r => ({
       confirmationNumber: r._id,
       mainGuestName: `${r.mainGuest.firstName} ${r.mainGuest.lastName}`,
