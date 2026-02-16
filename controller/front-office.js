@@ -237,8 +237,10 @@ exports.checkOut = async (req, res) => {
     if (reservation.stayStatus !== "checked-in")
       return res.status(400).json({ message: "Guest is not checked in" });
 
-   if (reservation.hotel.toString() !== hotelId)
-      return res.status(403).json({ message: "Unauthorized hotel" });
+   if (!reservation.hotel.equals(hotelId)) {
+  return res.status(403).json({ message: "Unauthorized hotel" });
+}
+
 
     if (reservation.remainingAmount > 0)
       return res.status(400).json({ message: "Outstanding balance must be paid before checkout" });
