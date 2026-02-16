@@ -45,31 +45,28 @@ exports.resizeImage = asyncHandler(async (req, res, next) => {
 
 // @desc    Get list of users (ONLY same hotel)
 exports.getUsers = [
-  setHotelFilter,
+  exports.setHotelFilter,
   factory.getAll(User)
 ];
 
-// @desc    Get specific user by id (ONLY same hotel)
 exports.getUser = [
-  setHotelFilter,
+  exports.setHotelFilter,
   factory.getOne(User)
 ];
 
-// @desc    Create user (auto assign hotel)
+exports.deleteUser = [
+  exports.setHotelFilter,
+  factory.deleteOne(User)
+];
+
 exports.createUser = [
   (req, res, next) => {
-    // 🔥 inject hotel into body before factory.createOne
     req.body.hotel = req.user.hotel;
     next();
   },
   factory.createOne(User)
 ];
 
-// @desc    Delete user (ONLY same hotel)
-exports.deleteUser = [
-  setHotelFilter,
-  factory.deleteOne(User)
-];
 
 // @desc    Update specific user
 // @route   PUT /api/v1/users/:id

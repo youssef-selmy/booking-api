@@ -5,17 +5,30 @@ const ApiFeatures = require('../utils/apiFeatures');
 exports.deleteOne = (Model) =>
   asyncHandler(async (req, res, next) => {
     const { id } = req.params;
-    const document = await Model.findByIdAndDelete(id);
+
+    // 🔥 merge hotel filter if exists
+    const filter = {
+      _id: id,
+      ...(req.filterObj || {}),
+    };
+
+    const document = await Model.findOneAndDelete(filter);
 
     if (!document) {
       return next(new ApiError(`No document for this id ${id}`, 404));
     }
+
     res.status(204).send();
-  }); 
+  });
 
 exports.updateOne = (Model) =>
   asyncHandler(async (req, res, next) => {
-    const document = await Model.findByIdAndUpdate(req.params.id, req.body, {
+    const filter = {
+      _id: req.params.id,
+      ...(req.filterObj || {}), // 🔥 hotel injected here
+    };
+
+    const document = await Model.findOneAndUpdate(filter, req.body, {
       new: true,
     });
 
@@ -24,6 +37,7 @@ exports.updateOne = (Model) =>
         new ApiError(`No document for this id ${req.params.id}`, 404)
       );
     }
+
     res.status(200).json({ data: document });
   });
 
@@ -36,12 +50,21 @@ exports.createOne = (Model) =>
 exports.getOne = (Model) =>
   asyncHandler(async (req, res, next) => {
     const { id } = req.params;
-    const document = await Model.findById(id);
+
+    const filter = {
+      _id: id,
+      ...(req.filterObj || {}), // 🔥 critical line
+    };
+
+    const document = await Model.findOne(filter);
+
     if (!document) {
       return next(new ApiError(`No document for this id ${id}`, 404));
     }
+
     res.status(200).json({ data: document });
   });
+
 
 exports.getAll = (Model, modelName = '') =>
   asyncHandler(async (req, res) => {
