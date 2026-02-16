@@ -4,6 +4,8 @@ const mongoose = require("mongoose");
 
 exports.getDashboardOverview = async (req, res, next) => {
   try {
+    const hotelId = req.user.hotel; // 🔥 IMPORTANT
+
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
@@ -11,41 +13,52 @@ exports.getDashboardOverview = async (req, res, next) => {
     todayEnd.setHours(23, 59, 59, 999);
 
     // ===============================
-    // ARRIVAL COUNT
+    // ARRIVAL COUNT (HOTEL FILTERED)
     // ===============================
     const arrival = await Reservation.countDocuments({
+      hotel: hotelId,
       checkIn: { $gte: todayStart, $lte: todayEnd },
       status: "confirmed"
     });
 
     // ===============================
-    // DEPARTURE COUNT
+    // DEPARTURE COUNT (HOTEL FILTERED)
     // ===============================
     const departure = await Reservation.countDocuments({
+      hotel: hotelId,
       checkOut: { $gte: todayStart, $lte: todayEnd },
       status: "confirmed"
     });
 
     // ===============================
-    // IN HOUSE
+    // IN HOUSE (HOTEL FILTERED)
     // ===============================
     const inHouse = await Reservation.countDocuments({
-      checkIn: { $lte: todayEnd },
-      checkOut: { $gt: todayStart },
-      status: "confirmed"
+      hotel: hotelId,
+      stayStatus: "checked-in", // ⭐ better than date logic
+      status: { $ne: "canceled" }
     });
 
     // ===============================
-    // ROOM STATUS
+    // ROOM STATUS (HOTEL FILTERED)
+    // ⚠️ Only works if Room model has hotel field
     // ===============================
-    const totalRooms = await Room.countDocuments();
-    const occupiedRooms = await Room.countDocuments({ status: "occupied" });
+    const totalRooms = await Room.countDocuments({ hotel: hotelId });
+    const occupiedRooms = await Room.countDocuments({
+      hotel: hotelId,
+      status: "occupied"
+    });
     const avilableRooms = totalRooms - occupiedRooms;
 
     // ===============================
-    // ROOM SUMMARY BY CATEGORY + TYPE
+    // ROOM SUMMARY BY CATEGORY + TYPE (HOTEL FILTERED)
     // ===============================
     const roomsAggregation = await Room.aggregate([
+      {
+        $match: {
+          hotel: new mongoose.Types.ObjectId(hotelId) // 🔥 CRITICAL in aggregate
+        }
+      },
       {
         $lookup: {
           from: "roomcategories",
@@ -94,9 +107,10 @@ exports.getDashboardOverview = async (req, res, next) => {
     ]);
 
     // ===============================
-    // TODAY ARRIVALS TABLE
+    // TODAY ARRIVALS TABLE (HOTEL FILTERED)
     // ===============================
     const arrivalsData = await Reservation.find({
+      hotel: hotelId,
       checkIn: { $gte: todayStart, $lte: todayEnd },
       status: "confirmed"
     }).populate("rooms.room");
@@ -112,9 +126,10 @@ exports.getDashboardOverview = async (req, res, next) => {
     );
 
     // ===============================
-    // TODAY DEPARTURES TABLE
+    // TODAY DEPARTURES TABLE (HOTEL FILTERED)
     // ===============================
     const departuresData = await Reservation.find({
+      hotel: hotelId,
       checkOut: { $gte: todayStart, $lte: todayEnd },
       status: "confirmed"
     }).populate("rooms.room");
