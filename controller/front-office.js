@@ -193,6 +193,8 @@ exports.checkIn = async (req, res) => {
     // 🔐 Hotel ownership check
     if (reservation.hotel.toString() !== hotelId)
       return res.status(403).json({ message: "Unauthorized hotel" });
+    console.log("Hotel ID from token:",hotelId);
+    console.log("Hotel ID from reservation:",reservation.hotel);
 
    const today = normalizeDate(new Date());
     const checkInDate = normalizeDate(reservation.checkIn);
