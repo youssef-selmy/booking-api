@@ -1,5 +1,5 @@
 const Reservation = require("../models/Reservation");
-
+  const mongoose = require("mongoose");
 
 
 
@@ -191,8 +191,10 @@ exports.checkIn = async (req, res) => {
       return res.status(400).json({ message: "Already checked in or completed" });
 
     // 🔐 Hotel ownership check
-    if (reservation.hotel.toString() !== hotelId)
-      return res.status(403).json({ message: "Unauthorized hotel" });
+if (!reservation.hotel.equals(hotelId)) {
+  return res.status(403).json({ message: "Unauthorized hotel" });
+}
+
     console.log("Hotel ID from token:",hotelId);
     console.log("Hotel ID from reservation:",reservation.hotel);
 
@@ -206,10 +208,13 @@ exports.checkIn = async (req, res) => {
     // reservation.actualCheckIn = new Date();
 
     // 🏨 update rooms
-    reservation.rooms.forEach(r => {
-      r.room.status = "occupied";
-      r.room.save();
-    });
+await Promise.all(
+  reservation.rooms.map(r => {
+    r.room.status = "occupied";
+    return r.room.save();
+  })
+);
+
 
     await reservation.save();
 
