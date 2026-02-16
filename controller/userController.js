@@ -9,6 +9,19 @@ const { uploadSingleImage } = require('../middlewares/uploadImageMiddleware');
 const createToken = require('../utils/createToken');
 const User = require('../models/userModel');
 
+
+exports.setHotelFilter = (req, res, next) => {
+  // hotel comes from JWT (you already use req.user.hotel)
+  if (!req.user || !req.user.hotel) {
+    return res.status(403).json({ message: "Unauthorized hotel" });
+  }
+
+  // 🔥 This is the key line
+  req.filterObj = { hotel: req.user.hotel };
+
+  next();
+};
+
 // Upload single image
 exports.uploadUserImage = uploadSingleImage('profileImg');
 
@@ -30,27 +43,42 @@ exports.resizeImage = asyncHandler(async (req, res, next) => {
   next();
 });
 
-// @desc    Get list of users
-// @route   GET /api/v1/users
-// @access  Private/Admin
-exports.getUsers = factory.getAll(User);
+// @desc    Get list of users (ONLY same hotel)
+exports.getUsers = [
+  setHotelFilter,
+  factory.getAll(User)
+];
 
-// @desc    Get specific user by id
-// @route   GET /api/v1/users/:id
-// @access  Private/Admin
-exports.getUser = factory.getOne(User);
+// @desc    Get specific user by id (ONLY same hotel)
+exports.getUser = [
+  setHotelFilter,
+  factory.getOne(User)
+];
 
-// @desc    Create user
-// @route   POST  /api/v1/users
-// @access  Private/Admin
-exports.createUser = factory.createOne(User);
+// @desc    Create user (auto assign hotel)
+exports.createUser = [
+  (req, res, next) => {
+    // 🔥 inject hotel into body before factory.createOne
+    req.body.hotel = req.user.hotel;
+    next();
+  },
+  factory.createOne(User)
+];
+
+// @desc    Delete user (ONLY same hotel)
+exports.deleteUser = [
+  setHotelFilter,
+  factory.deleteOne(User)
+];
 
 // @desc    Update specific user
 // @route   PUT /api/v1/users/:id
 // @access  Private/Admin
 exports.updateUser = asyncHandler(async (req, res, next) => {
-  const document = await User.findByIdAndUpdate(
-    req.params.id,
+  const hotelId = req.user.hotel;
+
+  const document = await User.findOneAndUpdate(
+    { _id: req.params.id, hotel: hotelId }, // 🔥 HOTEL FILTER
     {
       userName: req.body.userName,
       slug: req.body.slug,
@@ -59,14 +87,13 @@ exports.updateUser = asyncHandler(async (req, res, next) => {
       profileImg: req.body.profileImg,
       role: req.body.role,
     },
-    {
-      new: true,
-    }
+    { new: true }
   );
 
   if (!document) {
-    return next(new ApiError(`No document for this id ${req.params.id}`, 404));
+    return next(new ApiError(`No user found for this hotel`, 404));
   }
+
   res.status(200).json({ data: document });
 });
 
@@ -88,10 +115,7 @@ exports.changeUserPassword = asyncHandler(async (req, res, next) => {
   res.status(200).json({ data: document });
 });
 
-// @desc    Delete specific user
-// @route   DELETE /api/v1/users/:id
-// @access  Private/Admin
-exports.deleteUser = factory.deleteOne(User);
+
 
 // @desc    Get Logged user data
 // @route   GET /api/v1/users/getMe
