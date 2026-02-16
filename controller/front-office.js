@@ -1,5 +1,14 @@
 const Reservation = require("../models/Reservation");
 
+
+
+
+const normalizeDate = (date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
 exports.getUpcomingArrivals = async (req, res) => {
   try {
     const { hotelId } = req.user; // ✅ from token
@@ -147,11 +156,6 @@ exports.getNoShow = async (req, res) => {
 };
 
 
-const normalizeDate = (date) => {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-};
 
 
 
