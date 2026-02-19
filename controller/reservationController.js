@@ -85,6 +85,7 @@ exports.updateReservation = asyncHandler(async (req, res, next) => {
 
   // Update status
   if (req.body.status) reservation.status = req.body.status;
+    if (req.body.alerts) reservation.alerts = req.body.alerts;
 
   // Save triggers pre-save middleware to recalc totals
   await reservation.save();
