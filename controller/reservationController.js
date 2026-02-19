@@ -105,7 +105,6 @@ exports.deleteReservation = factory.deleteOne(Reservation);
 
 
 
-
 exports.getAvailableRooms = async (req, res) => {
   try {
     const { checkIn, checkOut, ...filters } = req.query;
@@ -127,18 +126,28 @@ exports.getAvailableRooms = async (req, res) => {
       });
     }
 
+    // 🔒 Prevent undefined hotel crash (your previous error)
+    if (!req.user || !req.user.hotel) {
+      return res.status(401).json({
+        status: "fail",
+        message: "User hotel not found. Make sure protect middleware is used."
+      });
+    }
+
     const hotelId = req.user.hotel;
 
-    // ✅ 1. Find overlapping reservations
-  const overlappingReservations = await Reservation.find({
-  hotel: hotelId,
-  stayStatus: { $in: ["reserved", "checked-in"] },
-  status: { $ne: "canceled" },
-  checkIn: { $lt: endDate },
-  checkOut: { $gt: startDate }
-}).select("rooms.room");
+    // ============================================
+    // 1️⃣ Find overlapping reservations (Booked Rooms)
+    // ============================================
+    const overlappingReservations = await Reservation.find({
+      hotel: hotelId,
+      stayStatus: { $in: ["reserved", "checked-in"] },
+      status: { $ne: "canceled" },
+      checkIn: { $lt: endDate },
+      checkOut: { $gt: startDate }
+    }).select("rooms.room");
 
-    // ✅ 2. Extract booked room IDs safely
+    // Extract booked room IDs safely
     const bookedRoomIds = [
       ...new Set(
         overlappingReservations.flatMap(res =>
@@ -152,13 +161,23 @@ exports.getAvailableRooms = async (req, res) => {
       )
     ];
 
-    // ✅ 3. Build base query
+    // ============================================
+    // 2️⃣ Base Query (EXCLUDE maintenance & cleaning)
+    // ============================================
     let roomQuery = {
       hotel: hotelId,
-      _id: { $nin: bookedRoomIds }
+      _id: { $nin: bookedRoomIds },
+
+      // 🔥 THIS IS THE IMPORTANT PART
+      // Exclude Out of Service + Housekeeping
+      status: { $nin: ["maintenance", "cleaning"] }
+      // Optional stricter version:
+      // status: "available"
     };
 
-    // ✅ 4. Apply dynamic filters
+    // ============================================
+    // 3️⃣ Apply dynamic filters (unchanged logic)
+    // ============================================
     Object.keys(filters).forEach(key => {
 
       // numeric fields
@@ -173,10 +192,16 @@ exports.getAvailableRooms = async (req, res) => {
 
       // createdAt range filtering
       else if (key === "createdFrom") {
-        roomQuery.createdAt = { ...roomQuery.createdAt, $gte: new Date(filters[key]) };
+        roomQuery.createdAt = {
+          ...roomQuery.createdAt,
+          $gte: new Date(filters[key])
+        };
       }
       else if (key === "createdTo") {
-        roomQuery.createdAt = { ...roomQuery.createdAt, $lte: new Date(filters[key]) };
+        roomQuery.createdAt = {
+          ...roomQuery.createdAt,
+          $lte: new Date(filters[key])
+        };
       }
 
       // text fields
@@ -185,12 +210,15 @@ exports.getAvailableRooms = async (req, res) => {
       }
     });
 
-    // ✅ 5. Query rooms
+    // ============================================
+    // 4️⃣ Get Available Rooms
+    // ============================================
     const availableRooms = await Room.find(roomQuery)
       .populate("category")
       .populate("type")
       .lean();
 
+    // 🔥 SAME RESPONSE FORMAT (no frontend break)
     res.status(200).json({
       status: "success",
       results: availableRooms.length,
@@ -204,6 +232,7 @@ exports.getAvailableRooms = async (req, res) => {
     });
   }
 };
+
 
 
 

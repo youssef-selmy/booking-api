@@ -26,7 +26,7 @@ const servicesRoute = require('./routes/roomServicesRoute');
 const reservationRoute = require('./routes/reservationRoutes');
 const dashboardRoutes=require('./routes/dashboardRoutes.js');
 const frontOffice=require('./routes/frontOficeRoute.js')
-
+const inventoryRoute=require('./routes/inventoryRoute')
 
 
 
@@ -86,6 +86,7 @@ app.use('/api/v1/services', servicesRoute);
 app.use('/api/v1/reservation', reservationRoute);
 app.use("/api/v1/dashboard", dashboardRoutes);
 app.use("/api/v1/front-office", frontOffice);
+app.use('/api/v1/inventory',inventoryRoute);
 
 
 app.all('*', (req, res, next) => {
