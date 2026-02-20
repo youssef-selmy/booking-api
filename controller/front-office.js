@@ -253,7 +253,7 @@ exports.checkOut = async (req, res) => {
     // 🏨 free rooms
   await Promise.all(
   reservation.rooms.map(r => {
-    r.room.status = "available";
+    r.room.status = "cleaning";
     return r.room.save();
   })
 );
