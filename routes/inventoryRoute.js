@@ -11,5 +11,7 @@ router.use(authController.protect);
 router.get('/out-of-service', inventoryController.getOutOfServiceRooms);
 router.get('/house-keeping', inventoryController.getHouseKeepingRooms);
 router.patch('/finish/:id', inventoryController.finishRoomStatus);
+router.patch('/housekeeping/:roomNumber', inventoryController.setRoomToHousekeeping);
+router.patch('/out-of-service/:roomNumber', inventoryController.setRoomToOutOfService);
 
 module.exports = router;

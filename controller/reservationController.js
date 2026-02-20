@@ -170,7 +170,7 @@ exports.getAvailableRooms = async (req, res) => {
 
       // 🔥 THIS IS THE IMPORTANT PART
       // Exclude Out of Service + Housekeeping
-      status: { $nin: ["maintenance", "cleaning"] }
+       status: { $nin: ["maintenance", "cleaning", "occupied", "reserved"] }
       // Optional stricter version:
       // status: "available"
     };

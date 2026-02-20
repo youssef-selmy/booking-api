@@ -103,3 +103,68 @@ exports.finishRoomStatus = asyncHandler(async (req, res, next) => {
   // SAME handlerFactory response style
   res.status(200).json({ data: room });
 });
+
+
+// @desc    Set room to housekeeping by room number
+// @route   PATCH /api/v1/rooms/housekeeping/:roomNumber
+// @access  Private (Hotel Staff)
+exports.setRoomToHousekeeping = asyncHandler(async (req, res, next) => {
+  const { roomNumber } = req.params;
+
+  if (!req.user?.hotel) {
+    return next(new ApiError('User not assigned to any hotel', 403));
+  }
+
+  const room = await Room.findOneAndUpdate(
+    {
+      roomNumber,
+      hotel: req.user.hotel // 🔒 multi-hotel safety
+    },
+    {
+      status: 'cleaning'
+    },
+    {
+      new: true,
+      runValidators: true
+    }
+  );
+
+  if (!room) {
+    return next(new ApiError(`No room found with number ${roomNumber}`, 404));
+  }
+
+  res.status(200).json({ data: room }); // SAME factory format
+});
+
+
+
+// @desc    Set room to out of service (maintenance) by room number
+// @route   PATCH /api/v1/rooms/out-of-service/:roomNumber
+// @access  Private (Hotel Staff)
+exports.setRoomToOutOfService = asyncHandler(async (req, res, next) => {
+  const { roomNumber } = req.params;
+
+  if (!req.user?.hotel) {
+    return next(new ApiError('User not assigned to any hotel', 403));
+  }
+
+  const room = await Room.findOneAndUpdate(
+    {
+      roomNumber,
+      hotel: req.user.hotel
+    },
+    {
+      status: 'maintenance'
+    },
+    {
+      new: true,
+      runValidators: true
+    }
+  );
+
+  if (!room) {
+    return next(new ApiError(`No room found with number ${roomNumber}`, 404));
+  }
+
+  res.status(200).json({ data: room });
+});
