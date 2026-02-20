@@ -110,6 +110,12 @@ hotel: {
   required: true,
   index: true
 },
+travelAgent: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "TravelAgent",
+  default: null
+},
+
 
 // actualCheckIn: Date,
 // actualCheckOut: Date,
