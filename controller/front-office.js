@@ -31,12 +31,15 @@ fiveDaysLater.setUTCHours(23, 59, 59, 999);
 
     })
       .select("mainGuest rooms checkIn travelAgent")
+      .populate("travelAgent", "_id name")
       .lean();
 
     const data = reservations.map(r => ({
       confirmationNumber: r._id,
       mainGuestName: `${r.mainGuest.firstName} ${r.mainGuest.lastName}`,
-      travelAgent: r.travelAgent || "N/A",
+      travelAgent: r.travelAgent
+        ? { id: r.travelAgent._id, name: r.travelAgent.name }
+        : "N/A",
       roomsCount: r.rooms.length,
       arriveDate: r.checkIn.toLocaleDateString("en-GB"),
       reservedNights: r.rooms[0]?.nights || 0
@@ -197,11 +200,11 @@ if (!reservation.hotel.equals(hotelId)) {
    const today = normalizeDate(new Date());
     const checkInDate = normalizeDate(reservation.checkIn);
 
-    if (checkInDate > today)
-      return res.status(400).json({ message: "Check-in date not reached yet" });
+    // if (checkInDate > today)
+    //   return res.status(400).json({ message: "Check-in date not reached yet" });
     reservation.stayStatus = "checked-in";
     reservation.status = "confirmed";
-    // reservation.actualCheckIn = new Date();
+    reservation.checkIn = new Date();
 
     // 🏨 update rooms
 await Promise.all(

@@ -112,8 +112,8 @@ hotel: {
 },
 travelAgent: {
   type: mongoose.Schema.Types.ObjectId,
-  ref: "TravelAgent",
-  default: null
+  ref: "TravelAgent"
+  
 },
 
 
@@ -277,7 +277,11 @@ function autoPopulateReservation(next) {
     path: "rooms.package",
     model: "Packages"
   })
-  .populate("services");
+  .populate("services")
+  .populate({
+  path: "travelAgent",
+  select: "_id name"
+});
 
   next();
 }

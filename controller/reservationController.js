@@ -6,12 +6,55 @@ const Room = require("../models/roomModel");
 // @desc    Get list of reservations
 // @route   GET /api/v1/reservations
 // @access  Private/Admin
-exports.getReservations = factory.getAll(Reservation);
+exports.getReservations = asyncHandler(async (req, res, next) => {
+  // reuse the generic filtering/pagination but make sure we populate travelAgent
+  let filter = {};
+  if (req.filterObj) filter = req.filterObj;
+
+  const isAll = req.query.all === 'true';
+
+  let apiFeatures = new ApiFeatures(
+    Reservation.find(filter).populate('travelAgent', '_id name'),
+    req.query
+  )
+    .filter()
+    .search('reservation')
+    .limitFields()
+    .sort();
+
+  let paginationResult;
+  if (!isAll) {
+    const documentsCounts = await Reservation.countDocuments(filter);
+    apiFeatures = apiFeatures.paginate(documentsCounts);
+    paginationResult = apiFeatures.paginationResult;
+  }
+
+  const documents = await apiFeatures.mongooseQuery;
+
+  res.status(200).json({
+    results: documents.length,
+    ...(paginationResult && { paginationResult }),
+    data: documents
+  });
+});
 
 // @desc    Get specific reservation by id
 // @route   GET /api/v1/reservations/:id
 // @access  Private/Admin
-exports.getReservation = factory.getOne(Reservation);
+exports.getReservation = asyncHandler(async (req, res, next) => {
+  const filter = {
+    _id: req.params.id,
+    ...(req.filterObj || {})
+  };
+
+  const reservation = await Reservation.findOne(filter).populate('travelAgent', '_id name');
+
+  if (!reservation) {
+    return next(new ApiError(`No document for this id ${req.params.id}`, 404));
+  }
+
+  res.status(200).json({ data: reservation });
+});
 
 
 
@@ -282,13 +325,17 @@ exports.getHotelReservations = async (req, res) => {
     // =============================
     // 2️⃣ Fetch & populate rooms
     // =============================
-    const reservations = await Reservation.find(dbFilter)
-      .populate({
-        path: "rooms.room",
-        match: { hotel: hotelId },
-        select: "hotel"
-      })
-      .lean();
+const reservations = await Reservation.find(dbFilter)
+  .populate({
+    path: "rooms.room",
+    match: { hotel: hotelId },
+    select: "hotel"
+  })
+  .populate({
+    path: "travelAgent",
+    select: "_id name"
+  })
+  .lean(); // ✅ now it’s safe
 
     // =============================
     // 3️⃣ Keep only hotel reservations
@@ -340,7 +387,9 @@ exports.getHotelReservations = async (req, res) => {
       return {
         confirmationNumber: r._id,
         mainGuestName: `${r.mainGuest.firstName} ${r.mainGuest.lastName}`,
-        travelAgent: r.travelAgent || "-",
+        travelAgent: r.travelAgent
+        ? { id: r.travelAgent._id, name: r.travelAgent.name }
+        : "-",
         roomsCount: hotelRooms.length,
         arriveDate: r.checkIn,
         reservedNights: r.rooms?.[0]?.nights || 0,

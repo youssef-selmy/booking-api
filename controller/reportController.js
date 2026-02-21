@@ -1,4 +1,5 @@
 const asyncHandler = require("express-async-handler");
+const mongoose = require("mongoose");
 const Reservation = require("../models/Reservation");
 const Room = require("../models/roomModel");
 
@@ -37,7 +38,7 @@ exports.getExpectedArrivals = asyncHandler(async (req, res) => {
       ? `Agent - ${r.travelAgent.name}`
       : "Direct",
     expectedArrival: r.checkIn,
-    paymentStatus: r.paymentStatus || "pending",
+    remainingAmount: r.remainingAmount || 0,
     roomType: r.rooms?.[0]?.room?.roomNumber || "-",
     vipNotes: r.alerts || "-"
   }));
@@ -64,11 +65,11 @@ exports.getInHouseGuests = asyncHandler(async (req, res) => {
   const report = reservations.map(r => ({
     guestName: `${r.mainGuest.firstName} ${r.mainGuest.lastName}`,
     roomNumber: r.rooms?.[0]?.room?.roomNumber || "-",
-    passport: r.mainGuest.passportNumber || "-",
+    idNumber: r.mainGuest.idNumber || "-",
     nationality: r.mainGuest.nationality || "-",
     arrivalDate: r.checkIn,
     departureDate: r.checkOut,
-    balance: r.balance || 0
+    paidAmount: r.paidAmount || 0
   }));
 
   res.status(200).json({
@@ -100,7 +101,7 @@ exports.getReservationLedger = asyncHandler(async (req, res) => {
       guestName: `${r.mainGuest.firstName} ${r.mainGuest.lastName}`,
       status: r.status,
       stayStatus: r.stayStatus,
-      paymentStatus: r.paymentStatus || "pending",
+      remainingAmount: r.remainingAmount || 0,
       nights,
       bookingSource: r.travelAgent
         ? r.travelAgent.name
@@ -123,7 +124,7 @@ exports.getNoShowAndCancellations = asyncHandler(async (req, res) => {
     hotel: hotelId,
     $or: [
       { status: "canceled" },
-      { stayStatus: "no-show" }
+      { stayStatus: "reserved", checkIn: { $lt: new Date() } }
     ]
   }).lean();
 
@@ -133,7 +134,7 @@ exports.getNoShowAndCancellations = asyncHandler(async (req, res) => {
     checkIn: r.checkIn,
     status: r.status,
     stayStatus: r.stayStatus,
-    lostRevenue: r.totalPrice || 0
+    lostRevenue: r.paidAmount || 0
   }));
 
   res.status(200).json({
@@ -157,7 +158,7 @@ exports.getPoliceReport = asyncHandler(async (req, res) => {
   const policeData = reservations.map(r => ({
     fullName: `${r.mainGuest.firstName} ${r.mainGuest.lastName}`,
     nationality: r.mainGuest.nationality || "-",
-    passportNumber: r.mainGuest.passportNumber || "-",
+    idNumber: r.mainGuest.idNumber || "-",
     roomNumber: r.rooms?.[0]?.room?.roomNumber || "-",
     arrivalDate: r.checkIn,
     departureDate: r.checkOut
@@ -189,7 +190,7 @@ exports.getRoomStatusReport = asyncHandler(async (req, res) => {
       "NA",
     lastUpdated: room.updatedAt,
     floor: room.floor,
-    notes: room.housekeepingNotes || "-"
+    
   }));
 
   res.status(200).json({
@@ -212,7 +213,7 @@ exports.getNightAuditReport = asyncHandler(async (req, res) => {
   }).lean();
 
   const totalRevenue = reservations.reduce(
-    (sum, r) => sum + (r.totalPrice || 0),
+    (sum, r) => sum + (r.totalAmount || 0),
     0
   );
 
@@ -278,7 +279,7 @@ exports.getManagerFlashReport = asyncHandler(async (req, res) => {
   );
 
   const totalRoomRevenue = reservations.reduce(
-    (sum, r) => sum + (r.totalPrice || 0),
+    (sum, r) => sum + (r.totalAmount || 0),
     0
   );
 
@@ -313,6 +314,157 @@ exports.getManagerFlashReport = asyncHandler(async (req, res) => {
       occupancy: Number(occupancy),
       ADR: Number(adr),
       RevPAR: Number(revpar)
+    }
+  });
+});
+
+
+
+
+
+
+
+
+// ========================================
+// 🧾 Folio History Report (Like Opera PMS)
+// GET /api/reports/folio-history
+// ========================================
+// 🧾 Folio History Report (SECURE - Hotel from Token)
+exports.getFolioHistoryReport = asyncHandler(async (req, res) => {
+  // 🔥 HOTEL FROM TOKEN (VERY IMPORTANT)
+  const hotelId = req.user.hotel;
+
+  const { fromDate, toDate, stayStatus, status, travelAgent } = req.query;
+
+  const filter = {
+    hotel: new mongoose.Types.ObjectId(hotelId)
+  };
+
+  if (status) filter.status = status;
+  if (stayStatus) filter.stayStatus = stayStatus;
+
+  if (travelAgent) {
+    filter.travelAgent = new mongoose.Types.ObjectId(travelAgent);
+  }
+
+  if (fromDate || toDate) {
+    filter.createdAt = {};
+    if (fromDate) filter.createdAt.$gte = new Date(fromDate);
+    if (toDate) filter.createdAt.$lte = new Date(toDate);
+  }
+
+  const reservations = await Reservation.find(filter)
+    .sort({ createdAt: -1 });
+
+  let totalRevenue = 0;
+  let totalPaid = 0;
+  let totalRemaining = 0;
+
+  const data = reservations.map((r) => {
+    const guestName = `${r.mainGuest.firstName} ${r.mainGuest.lastName}`;
+
+    const rooms = r.rooms.map((room) => ({
+      roomNumber: room.room?.roomNumber,
+      nights: room.nights,
+      perDay: room.perDay,
+      total: room.total
+    }));
+
+    const payments = r.payments.map((p) => ({
+      amount: p.amount,
+      method: p.method,
+      date: p.date
+    }));
+
+    totalRevenue += r.totalAmount || 0;
+    totalPaid += r.paidAmount || 0;
+    totalRemaining += r.remainingAmount || 0;
+
+    return {
+      reservationId: r._id,
+      guest: guestName,
+      rooms,
+      stayStatus: r.stayStatus,
+      reservationStatus: r.status,
+      checkIn: r.checkIn,
+      checkOut: r.checkOut,
+      totalAmount: r.totalAmount,
+      paidAmount: r.paidAmount,
+      remainingAmount: r.remainingAmount,
+      payments,
+      travelAgent: r.travelAgent,
+      createdAt: r.createdAt
+    };
+  });
+
+  res.status(200).json({
+    status: "success",
+    hotel: hotelId,
+    results: data.length,
+    summary: {
+      totalRevenue,
+      totalPaid,
+      totalRemaining
+    },
+    data
+  });
+});
+
+
+
+// 💰 Cashier Report (Token Based)
+exports.getCashierReport = asyncHandler(async (req, res) => {
+  const hotelId = req.user.hotel;
+  const { fromDate, toDate, method } = req.query;
+
+  const matchStage = {
+    hotel: new mongoose.Types.ObjectId(hotelId)
+  };
+
+  if (fromDate || toDate) {
+    matchStage.createdAt = {};
+    if (fromDate) matchStage.createdAt.$gte = new Date(fromDate);
+    if (toDate) matchStage.createdAt.$lte = new Date(toDate);
+  }
+
+  const pipeline = [
+    { $match: matchStage },
+    { $unwind: "$payments" }
+  ];
+
+  if (method) {
+    pipeline.push({
+      $match: { "payments.method": method }
+    });
+  }
+
+  pipeline.push({
+    $group: {
+      _id: "$payments.method",
+      totalAmount: { $sum: "$payments.amount" },
+      transactions: { $sum: 1 }
+    }
+  });
+
+  const result = await Reservation.aggregate(pipeline);
+
+  let totalCash = 0;
+  let grandTotal = 0;
+
+  result.forEach((item) => {
+    grandTotal += item.totalAmount;
+    if (item._id?.toLowerCase() === "cash") {
+      totalCash = item.totalAmount;
+    }
+  });
+
+  res.status(200).json({
+    status: "success",
+    hotel: hotelId,
+    summary: {
+      grandTotal,
+      totalCash,
+      breakdown: result
     }
   });
 });
