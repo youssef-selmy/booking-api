@@ -109,19 +109,28 @@ const Hotel = require('../models/hotelModel');
 
 exports.getRecommendation = async (req, res) => {
   try {
-    const hotelId = req.user.hotel?.toString();
-    if (!hotelId)
-      return res.status(403).json({ status: "error", message: "Hotel ID not found in token" });
+    const hotelId = req.user?.hotel?.toString();
+    if (!hotelId) {
+      return res.status(403).json({
+        status: "error",
+        message: "Hotel ID not found in token"
+      });
+    }
 
     const hotel = await Hotel.findById(hotelId)
       .select("hotelName location totalRooms totalOwners services")
       .lean();
-    if (!hotel)
-      return res.status(404).json({ status: "error", message: "Hotel not found" });
+
+    if (!hotel) {
+      return res.status(404).json({
+        status: "error",
+        message: "Hotel not found"
+      });
+    }
 
     const prompt = `
 Hotel name: ${hotel.hotelName}
-Location: ${hotel.location || ""}
+Location: ${hotel.location || "N/A"}
 Total Rooms: ${hotel.totalRooms || "N/A"}
 Total Owners: ${hotel.totalOwners || "N/A"}
 Services: ${hotel.services || "N/A"}
@@ -131,26 +140,47 @@ Focus on check-in, guest comfort, upselling ideas, service tips, and local tips.
 Keep it concise.
 `;
 
-    const GEMINI_API_KEY =
-      process.env.GEMINI_API_KEY ||
-      "AIzaSyCVvnYQ0tosdjJpvnwgtxzQgGuXQZoiJf0";
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY||"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";
+    if (!OPENROUTER_API_KEY) {
+      return res.status(500).json({
+        status: "error",
+        message: "OpenRouter API key not configured"
+      });
+    }
 
-    // =============================
-    // Call Gemini Text-Bison-001
-    // =============================
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/google/gemini-2.0-flash-001:generateText?key=${GEMINI_API_KEY}`,
+  const response = await axios.post(
+  "https://openrouter.ai/api/v1/chat/completions",
+  {
+    model:"google/gemini-2.0-flash-001",
+    messages: [
       {
-        prompt: { text: prompt },   // ✅ wrap prompt in { text: ... }
-        temperature: 0.3,
-        maxOutputTokens: 300
+        role: "system",
+        content:
+          "You are a professional hotel front-desk assistant. Give concise, practical, and polite recommendations in one line."
       },
-      { headers: { "Content-Type": "application/json" } }
-    );
+      {
+        role: "user",
+        content: prompt
+      }
+    ],
+    temperature: 0.3,
+    max_tokens: 300
+  },
+  {
+    headers: {
+      Authorization: `Bearer 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`,
+      "Content-Type": "application/json",
 
-    // Gemini v1beta response
+      // ✅ REQUIRED BY OPENROUTER
+      "HTTP-Referer": "http://localhost:8000",
+      "X-Title": "Booking API" 
+    },
+    timeout: 20000
+  }
+);
+
     const recommendation =
-      response.data?.candidates?.[0]?.output || response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      response.data?.choices?.[0]?.message?.content || "";
 
     return res.status(200).json({
       status: "success",
@@ -159,7 +189,13 @@ Keep it concise.
     });
 
   } catch (err) {
-    console.error("Gemini Recommendation error:", err?.response?.data || err.message);
-    return res.status(500).json({ status: "error", message: "Failed to get recommendation" });
+    console.error("OpenRouter Recommendation error:",
+      err?.response?.data || err.message
+    );
+
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to get recommendation"
+    });
   }
 };
