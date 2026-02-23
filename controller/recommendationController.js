@@ -10,35 +10,113 @@ const Hotel = require('../models/hotelModel');
 
 
 
+// exports.getRecommendation = async (req, res) => {
+//   try {
+//     // ✅ hotelId ONLY from token
+//     const hotelId = req.user?.hotel?.toString();
+
+//     if (!hotelId) {
+//       return res.status(403).json({
+//         status: "error",
+//         message: "Hotel ID not found in token"
+//       });
+//     }
+
+//     // =============================
+//     // 1️⃣ Fetch hotel
+//     // =============================
+//     const hotel = await Hotel.findById(hotelId)
+//       .select("name city country stars amenities")
+//       .lean();
+
+//     if (!hotel) {
+//       return res.status(404).json({
+//         status: "error",
+//         message: "Hotel not found"
+//       });
+//     }
+
+//     // =============================
+//     // 2️⃣ Build prompt
+//     // =============================
+//     const prompt = `
+// Hotel name: ${hotel.name}
+// Location: ${hotel.city || ""} ${hotel.country || ""}
+// Stars: ${hotel.stars || "N/A"}
+// Amenities: ${hotel.amenities?.join(", ") || "N/A"}
+
+// Provide short, practical front-desk recommendations for guests.
+// Focus on:
+// - check-in experience
+// - guest comfort
+// - upselling ideas
+// - service tips
+// - local tips (if relevant)
+
+// Keep it concise.
+// `;
+
+//     // =============================
+//     // 3️⃣ Gemini API call
+//     // =============================
+//     const GEMINI_API_KEY =
+//       process.env.GEMINI_API_KEY ||
+//       "AIzaSyCVvnYQ0tosdjJpvnwgtxzQgGuXQZoiJf0";
+
+//    const response = await axios.post(
+//       `https://generativelanguage.googleapis.com/v1beta/models/text-bison-001:generateText?key=${GEMINI_API_KEY}`,
+//       {
+//         contents: [
+//           {
+//             parts: [{ text: prompt }]
+//           }
+//         ]
+//       },
+//       {
+//         headers: {
+//           "Content-Type": "application/json"
+//         },
+//         timeout: 15000
+//       }
+//     );
+
+//     const text =
+//       response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+//     // =============================
+//     // 4️⃣ Response
+//     // =============================
+//     return res.status(200).json({
+//       status: "success",
+//       hotelId,
+//       recommendation: text.trim()
+//     });
+
+//   } catch (err) {
+//     console.error("Gemini Recommendation error:", err?.response?.data || err.message);
+
+//     return res.status(500).json({
+//       status: "error",
+//       message: "Failed to get recommendation"
+//     });
+//   }
+// };
+
+
+
+
+
+
 exports.getRecommendation = async (req, res) => {
   try {
-    // ✅ hotelId ONLY from token
     const hotelId = req.user?.hotel?.toString();
+    if (!hotelId) return res.status(403).json({ status: "error", message: "Hotel ID not found in token" });
 
-    if (!hotelId) {
-      return res.status(403).json({
-        status: "error",
-        message: "Hotel ID not found in token"
-      });
-    }
-
-    // =============================
-    // 1️⃣ Fetch hotel
-    // =============================
     const hotel = await Hotel.findById(hotelId)
       .select("name city country stars amenities")
       .lean();
+    if (!hotel) return res.status(404).json({ status: "error", message: "Hotel not found" });
 
-    if (!hotel) {
-      return res.status(404).json({
-        status: "error",
-        message: "Hotel not found"
-      });
-    }
-
-    // =============================
-    // 2️⃣ Build prompt
-    // =============================
     const prompt = `
 Hotel name: ${hotel.name}
 Location: ${hotel.city || ""} ${hotel.country || ""}
@@ -46,58 +124,34 @@ Stars: ${hotel.stars || "N/A"}
 Amenities: ${hotel.amenities?.join(", ") || "N/A"}
 
 Provide short, practical front-desk recommendations for guests.
-Focus on:
-- check-in experience
-- guest comfort
-- upselling ideas
-- service tips
-- local tips (if relevant)
-
+Focus on check-in, guest comfort, upselling ideas, service tips, and local tips.
 Keep it concise.
 `;
 
-    // =============================
-    // 3️⃣ Gemini API call
-    // =============================
-    const GEMINI_API_KEY =
+  const GEMINI_API_KEY =
       process.env.GEMINI_API_KEY ||
       "AIzaSyCVvnYQ0tosdjJpvnwgtxzQgGuXQZoiJf0";
 
-   const response = await axios.post(
+    const response = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/text-bison-001:generateText?key=${GEMINI_API_KEY}`,
       {
-        contents: [
-          {
-            parts: [{ text: prompt }]
-          }
-        ]
+        prompt: prompt,
+        temperature: 0.3,
+        maxOutputTokens: 300
       },
-      {
-        headers: {
-          "Content-Type": "application/json"
-        },
-        timeout: 15000
-      }
+      { headers: { "Content-Type": "application/json" } }
     );
 
-    const text =
-      response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const recommendation = response.data?.candidates?.[0]?.output || "";
 
-    // =============================
-    // 4️⃣ Response
-    // =============================
     return res.status(200).json({
       status: "success",
       hotelId,
-      recommendation: text.trim()
+      recommendation: recommendation.trim()
     });
 
   } catch (err) {
     console.error("Gemini Recommendation error:", err?.response?.data || err.message);
-
-    return res.status(500).json({
-      status: "error",
-      message: "Failed to get recommendation"
-    });
+    return res.status(500).json({ status: "error", message: "Failed to get recommendation" });
   }
 };
