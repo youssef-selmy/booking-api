@@ -109,19 +109,20 @@ const Hotel = require('../models/hotelModel');
 
 exports.getRecommendation = async (req, res) => {
   try {
-    const hotelId = req.user?.hotel?.toString();
+    const hotelId = req.user.hotel?.toString();
     if (!hotelId) return res.status(403).json({ status: "error", message: "Hotel ID not found in token" });
 
     const hotel = await Hotel.findById(hotelId)
-      .select("name city country stars amenities")
+      .select("hotelName location totalRooms totalOwners services")
       .lean();
     if (!hotel) return res.status(404).json({ status: "error", message: "Hotel not found" });
 
     const prompt = `
-Hotel name: ${hotel.name}
-Location: ${hotel.city || ""} ${hotel.country || ""}
-Stars: ${hotel.stars || "N/A"}
-Amenities: ${hotel.amenities?.join(", ") || "N/A"}
+Hotel name: ${hotel.hotelName}
+Location: ${hotel.location || ""}
+Total Rooms: ${hotel.totalRooms || "N/A"}
+Total Owners: ${hotel.totalOwners || "N/A"}
+Services: ${hotel.services?.join(", ") || "N/A"}
 
 Provide short, practical front-desk recommendations for guests.
 Focus on check-in, guest comfort, upselling ideas, service tips, and local tips.
