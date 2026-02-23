@@ -1,6 +1,6 @@
 const axios = require('axios');
 const Reservation = require('../models/Reservation');
-const Hotel = require('../models/Hotel');
+const Hotel = require('../models/hotelModel');
 // POST /api/v1/front-office/recommendation
 // Uses ONLY hotelId from token
 exports.getRecommendation = async (req, res) => {
