@@ -318,16 +318,32 @@ exports.getHotelReservations = async (req, res) => {
     // =============================
     // 1️⃣ Build DB filter
     // =============================
-    const dbFilter = { hotel: hotelId };
+    const dbFilter = {};
 
     if (status) dbFilter.status = status;
     if (stayStatus) dbFilter.stayStatus = stayStatus;
 
-    if (fromDate || toDate) {
-      dbFilter.checkIn = {};
-      if (fromDate) dbFilter.checkIn.$gte = new Date(fromDate);
-      if (toDate) dbFilter.checkIn.$lte = new Date(toDate);
-    }
+  // =============================
+// ✅ Date overlap filter
+// =============================
+if (fromDate || toDate) {
+  const from = fromDate ? new Date(fromDate) : null;
+  const to = toDate ? new Date(toDate) : null;
+
+  hotelReservations = hotelReservations.filter(r => {
+    const checkIn = new Date(r.checkIn);
+    const nights = r.rooms?.[0]?.nights || 0;
+    const checkOut = new Date(
+      checkIn.getTime() + nights * 86400000
+    );
+
+    // overlap condition
+    if (from && checkOut < from) return false;
+    if (to && checkIn > to) return false;
+
+    return true;
+  });
+}
 
     // =============================
     // 2️⃣ Fetch reservations
