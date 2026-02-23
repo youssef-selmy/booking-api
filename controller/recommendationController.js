@@ -1,6 +1,8 @@
 const axios = require('axios');
 const Reservation = require('../models/Reservation');
 const Hotel = require('../models/hotelModel');
+const dotenv = require('dotenv');
+dotenv.config({ path: 'config.env' });
 // POST /api/v1/front-office/recommendation
 // Uses ONLY hotelId from token
 exports.getRecommendation = async (req, res) => {
@@ -53,8 +55,7 @@ Keep it concise and actionable.
     // 3️⃣ OpenRouter config
     // =============================
     const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-    const OPENROUTER_MODEL =
-      process.env.OPENROUTER_MODEL || "gpt-3.5-mini";
+    const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "gpt-3.5-mini";
 
     if (!OPENROUTER_API_KEY) {
       return res.status(500).json({
