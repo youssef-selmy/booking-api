@@ -122,7 +122,7 @@ Hotel name: ${hotel.hotelName}
 Location: ${hotel.location || ""}
 Total Rooms: ${hotel.totalRooms || "N/A"}
 Total Owners: ${hotel.totalOwners || "N/A"}
-Services: ${hotel.services?.join(", ") || "N/A"}
+Services: ${hotel.services || "N/A"}
 
 Provide short, practical front-desk recommendations for guests.
 Focus on check-in, guest comfort, upselling ideas, service tips, and local tips.
