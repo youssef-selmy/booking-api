@@ -62,7 +62,7 @@ Keep it concise and actionable.
     );
     console.log("Using OpenRouter Model:", process.env.OPENROUTER_MODEL);
 
-    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+    const OPENROUTER_API_KEY ="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" || process.env.OPENROUTER_API_KEY;
     const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "gpt-3.5-mini";
 
     if (!OPENROUTER_API_KEY) {
