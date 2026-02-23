@@ -287,6 +287,13 @@ exports.getHotelReservations = async (req, res) => {
   try {
     const hotelId = req.user.hotel;
 
+    if (!hotelId) {
+      return res.status(403).json({
+        success: false,
+        message: "Hotel ID not found in token"
+      });
+    }
+
     const {
       guest,
       status,
@@ -298,38 +305,27 @@ exports.getHotelReservations = async (req, res) => {
       minNights,
       maxNights,
       page = 1,
-      limit = 10,
-      sortBy = "arriveDate",
-      sortOrder = "asc"
+      limit = 10
     } = req.query;
-
-    if (!hotelId) {
-      return res.status(403).json({
-        success: false,
-        message: "Hotel ID not found in token"
-      });
-    }
 
     const pageNum = Math.max(Number(page), 1);
     const limitNum = Math.min(Number(limit), 100);
     const skip = (pageNum - 1) * limitNum;
-    const order = sortOrder === "desc" ? -1 : 1;
 
     // =============================
-    // 1️⃣ DB FILTER (SAFE)
+    // 1️⃣ DB FILTER (THE FIX 🔥)
     // =============================
-    const dbFilter = {};
+    const dbFilter = {
+      hotel: hotelId // ✅ THIS IS THE KEY FIX
+    };
+
     if (status) dbFilter.status = status;
     if (stayStatus) dbFilter.stayStatus = stayStatus;
 
     // =============================
     // 2️⃣ FETCH RESERVATIONS
     // =============================
-    const reservations = await Reservation.find(dbFilter)
-      .populate({
-        path: "rooms.room",
-        select: "_id hotel"
-      })
+    let reservations = await Reservation.find(dbFilter)
       .populate({
         path: "travelAgent",
         select: "_id name"
@@ -337,30 +333,15 @@ exports.getHotelReservations = async (req, res) => {
       .lean();
 
     // =============================
-    // 3️⃣ KEEP ONLY HOTEL ROOMS (FIXED)
-    // =============================
-    let hotelReservations = reservations.filter(r =>
-      Array.isArray(r.rooms) &&
-      r.rooms.some(room =>
-        room.room &&
-        room.room.hotel &&
-        room.room.hotel.toString() === hotelId.toString()
-      )
-    );
-
-    // =============================
-    // 4️⃣ DATE OVERLAP FILTER (FIXED ORDER)
+    // 3️⃣ DATE FILTER
     // =============================
     if (fromDate || toDate) {
       const from = fromDate ? new Date(fromDate) : null;
       const to = toDate ? new Date(toDate) : null;
 
-      hotelReservations = hotelReservations.filter(r => {
+      reservations = reservations.filter(r => {
         const checkIn = new Date(r.checkIn);
-        const nights = r.rooms?.[0]?.nights || 0;
-        const checkOut = new Date(
-          checkIn.getTime() + nights * 86400000
-        );
+        const checkOut = new Date(r.checkOut);
 
         if (from && checkOut < from) return false;
         if (to && checkIn > to) return false;
@@ -369,11 +350,11 @@ exports.getHotelReservations = async (req, res) => {
     }
 
     // =============================
-    // 5️⃣ GUEST FILTER
+    // 4️⃣ GUEST FILTER
     // =============================
     if (guest) {
       const g = guest.toLowerCase();
-      hotelReservations = hotelReservations.filter(r =>
+      reservations = reservations.filter(r =>
         `${r.mainGuest.firstName} ${r.mainGuest.lastName}`
           .toLowerCase()
           .includes(g)
@@ -381,15 +362,11 @@ exports.getHotelReservations = async (req, res) => {
     }
 
     // =============================
-    // 6️⃣ ROOMS COUNT FILTER
+    // 5️⃣ ROOMS FILTER
     // =============================
     if (minRooms || maxRooms) {
-      hotelReservations = hotelReservations.filter(r => {
-        const count = r.rooms.filter(room =>
-          room.room &&
-          room.room.hotel?.toString() === hotelId.toString()
-        ).length;
-
+      reservations = reservations.filter(r => {
+        const count = r.rooms?.length || 0;
         if (minRooms && count < Number(minRooms)) return false;
         if (maxRooms && count > Number(maxRooms)) return false;
         return true;
@@ -397,10 +374,10 @@ exports.getHotelReservations = async (req, res) => {
     }
 
     // =============================
-    // 7️⃣ NIGHTS FILTER
+    // 6️⃣ NIGHTS FILTER
     // =============================
     if (minNights || maxNights) {
-      hotelReservations = hotelReservations.filter(r => {
+      reservations = reservations.filter(r => {
         const nights = r.rooms?.[0]?.nights || 0;
         if (minNights && nights < Number(minNights)) return false;
         if (maxNights && nights > Number(maxNights)) return false;
@@ -409,14 +386,9 @@ exports.getHotelReservations = async (req, res) => {
     }
 
     // =============================
-    // 8️⃣ FORMAT RESPONSE
+    // 7️⃣ FORMAT RESPONSE
     // =============================
-    let result = hotelReservations.map(r => {
-      const hotelRooms = r.rooms.filter(room =>
-        room.room &&
-        room.room.hotel?.toString() === hotelId.toString()
-      );
-
+    const result = reservations.map(r => {
       const nights = r.rooms?.[0]?.nights || 0;
 
       return {
@@ -425,11 +397,9 @@ exports.getHotelReservations = async (req, res) => {
         travelAgent: r.travelAgent
           ? { id: r.travelAgent._id, name: r.travelAgent.name }
           : "-",
-        roomsCount: hotelRooms.length,
+        roomsCount: r.rooms.length,
         arriveDate: r.checkIn,
-        departDate: new Date(
-          new Date(r.checkIn).getTime() + nights * 86400000
-        ),
+        departDate: r.checkOut,
         reservedNights: nights,
         status: r.status,
         stayStatus: r.stayStatus
@@ -437,33 +407,11 @@ exports.getHotelReservations = async (req, res) => {
     });
 
     // =============================
-    // 9️⃣ SORTING (SAFE)
-    // =============================
-    const sortMap = {
-      arriveDate: r => new Date(r.arriveDate),
-      departDate: r => new Date(r.departDate),
-      roomsCount: r => r.roomsCount
-    };
-
-    if (sortMap[sortBy]) {
-      result.sort((a, b) => {
-        const A = sortMap[sortBy](a);
-        const B = sortMap[sortBy](b);
-        if (A > B) return order;
-        if (A < B) return -order;
-        return 0;
-      });
-    }
-
-    // =============================
-    // 🔟 PAGINATION
+    // 8️⃣ PAGINATION
     // =============================
     const total = result.length;
     const paginatedData = result.slice(skip, skip + limitNum);
 
-    // =============================
-    // 1️⃣1️⃣ RESPONSE
-    // =============================
     return res.status(200).json({
       success: true,
       pagination: {
