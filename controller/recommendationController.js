@@ -33,7 +33,7 @@ Focus on:
 Keep it concise and actionable.
 `;
 
-    const OPENAI_API_KEY = ;
+    const OPENAI_API_KEY = "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";
     if (!OPENAI_API_KEY)
       return res.status(500).json({ status: "error", message: "OpenAI API key not configured" });
 
