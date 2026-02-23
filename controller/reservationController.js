@@ -428,26 +428,26 @@ if (fromDate || toDate) {
     // =============================
     // 6️⃣ Sorting
     // =============================
-    const sortMap = {
-      confirmationNumber: r => r.confirmationNumber.toString(),
-      guestName: r => r.mainGuestName.toLowerCase(),
-      travelAgent: r =>
-        typeof r.travelAgent === "object"
-          ? r.travelAgent.name.toLowerCase()
-          : "",
-      arriveDate: r => new Date(r.arriveDate),
-      departDate: r => new Date(r.departDate)
-    };
+    // const sortMap = {
+    //   confirmationNumber: r => r.confirmationNumber.toString(),
+    //   guestName: r => r.mainGuestName.toLowerCase(),
+    //   travelAgent: r =>
+    //     typeof r.travelAgent === "object"
+    //       ? r.travelAgent.name.toLowerCase()
+    //       : "",
+    //   arriveDate: r => new Date(r.arriveDate),
+    //   departDate: r => new Date(r.departDate)
+    // };
 
-    if (sortMap[sortBy]) {
-      result.sort((a, b) => {
-        const A = sortMap[sortBy](a);
-        const B = sortMap[sortBy](b);
-        if (A > B) return order;
-        if (A < B) return -order;
-        return 0;
-      });
-    }
+    // if (sortMap[sortBy]) {
+    //   result.sort((a, b) => {
+    //     const A = sortMap[sortBy](a);
+    //     const B = sortMap[sortBy](b);
+    //     if (A > B) return order;
+    //     if (A < B) return -order;
+    //     return 0;
+    //   });
+    // }
 
     // =============================
     // 7️⃣ Pagination
