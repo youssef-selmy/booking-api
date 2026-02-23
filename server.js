@@ -71,7 +71,24 @@ if (process.env.NODE_ENV === 'development') {
 
 // Apply the rate limiting middleware to all requests
 //app.use('/api', limiter);
+app.use((req, res, next) => {
+  console.log("\n================= INCOMING REQUEST =================");
+  console.log("Time:", new Date().toISOString());
+  console.log("Method:", req.method);
+  console.log("URL:", req.originalUrl);
+  console.log("IP:", req.headers["x-forwarded-for"] || req.socket.remoteAddress);
+  console.log("Query:", req.query);
+  console.log("Params:", req.params);
+  console.log("Body:", req.body);
 
+  console.log("Headers:", {
+    "user-agent": req.headers["user-agent"],
+    authorization: req.headers.authorization ? "[PROVIDED]" : "[NONE]"
+  });
+
+  console.log("====================================================\n");
+  next();
+});
 
 // Mount Routes
 app.use('/api/v1/auth',authRoute)
