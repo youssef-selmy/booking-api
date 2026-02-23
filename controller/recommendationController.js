@@ -73,7 +73,7 @@ Keep it concise and actionable.
     }
 
     const body = {
-      model: OPENROUTER_MODEL,
+      model: "google/gemini-2.0-flash-001",
       messages: [
         {
           role: "system",
