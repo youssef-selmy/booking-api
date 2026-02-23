@@ -63,8 +63,8 @@ Keep it concise.
       process.env.GEMINI_API_KEY ||
       "AIzaSyCVvnYQ0tosdjJpvnwgtxzQgGuXQZoiJf0";
 
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+   const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/text-bison-001:generateText?key=${GEMINI_API_KEY}`,
       {
         contents: [
           {
