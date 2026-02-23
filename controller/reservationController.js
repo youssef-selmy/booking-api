@@ -316,43 +316,19 @@ exports.getHotelReservations = async (req, res) => {
     const order = sortOrder === "desc" ? -1 : 1;
 
     // =============================
-    // 1️⃣ Build DB filter
+    // 1️⃣ DB FILTER (SAFE)
     // =============================
     const dbFilter = {};
-
     if (status) dbFilter.status = status;
     if (stayStatus) dbFilter.stayStatus = stayStatus;
 
-  // =============================
-// ✅ Date overlap filter
-// =============================
-if (fromDate || toDate) {
-  const from = fromDate ? new Date(fromDate) : null;
-  const to = toDate ? new Date(toDate) : null;
-
-  hotelReservations = hotelReservations.filter(r => {
-    const checkIn = new Date(r.checkIn);
-    const nights = r.rooms?.[0]?.nights || 0;
-    const checkOut = new Date(
-      checkIn.getTime() + nights * 86400000
-    );
-
-    // overlap condition
-    if (from && checkOut < from) return false;
-    if (to && checkIn > to) return false;
-
-    return true;
-  });
-}
-
     // =============================
-    // 2️⃣ Fetch reservations
+    // 2️⃣ FETCH RESERVATIONS
     // =============================
     const reservations = await Reservation.find(dbFilter)
       .populate({
         path: "rooms.room",
-        match: { hotel: hotelId },
-        select: "hotel"
+        select: "_id hotel"
       })
       .populate({
         path: "travelAgent",
@@ -361,17 +337,40 @@ if (fromDate || toDate) {
       .lean();
 
     // =============================
-    // 3️⃣ Keep only hotel rooms
+    // 3️⃣ KEEP ONLY HOTEL ROOMS (FIXED)
     // =============================
     let hotelReservations = reservations.filter(r =>
-      r.rooms.some(room => room.room !== null)
+      Array.isArray(r.rooms) &&
+      r.rooms.some(room =>
+        room.room &&
+        room.room.hotel &&
+        room.room.hotel.toString() === hotelId.toString()
+      )
     );
 
     // =============================
-    // 4️⃣ In-memory filters
+    // 4️⃣ DATE OVERLAP FILTER (FIXED ORDER)
     // =============================
+    if (fromDate || toDate) {
+      const from = fromDate ? new Date(fromDate) : null;
+      const to = toDate ? new Date(toDate) : null;
 
-    // Guest name
+      hotelReservations = hotelReservations.filter(r => {
+        const checkIn = new Date(r.checkIn);
+        const nights = r.rooms?.[0]?.nights || 0;
+        const checkOut = new Date(
+          checkIn.getTime() + nights * 86400000
+        );
+
+        if (from && checkOut < from) return false;
+        if (to && checkIn > to) return false;
+        return true;
+      });
+    }
+
+    // =============================
+    // 5️⃣ GUEST FILTER
+    // =============================
     if (guest) {
       const g = guest.toLowerCase();
       hotelReservations = hotelReservations.filter(r =>
@@ -381,17 +380,25 @@ if (fromDate || toDate) {
       );
     }
 
-    // Rooms count
+    // =============================
+    // 6️⃣ ROOMS COUNT FILTER
+    // =============================
     if (minRooms || maxRooms) {
       hotelReservations = hotelReservations.filter(r => {
-        const count = r.rooms.filter(room => room.room !== null).length;
+        const count = r.rooms.filter(room =>
+          room.room &&
+          room.room.hotel?.toString() === hotelId.toString()
+        ).length;
+
         if (minRooms && count < Number(minRooms)) return false;
         if (maxRooms && count > Number(maxRooms)) return false;
         return true;
       });
     }
 
-    // Nights count
+    // =============================
+    // 7️⃣ NIGHTS FILTER
+    // =============================
     if (minNights || maxNights) {
       hotelReservations = hotelReservations.filter(r => {
         const nights = r.rooms?.[0]?.nights || 0;
@@ -402,10 +409,14 @@ if (fromDate || toDate) {
     }
 
     // =============================
-    // 5️⃣ Format response
+    // 8️⃣ FORMAT RESPONSE
     // =============================
     let result = hotelReservations.map(r => {
-      const hotelRooms = r.rooms.filter(room => room.room !== null);
+      const hotelRooms = r.rooms.filter(room =>
+        room.room &&
+        room.room.hotel?.toString() === hotelId.toString()
+      );
+
       const nights = r.rooms?.[0]?.nights || 0;
 
       return {
@@ -426,37 +437,32 @@ if (fromDate || toDate) {
     });
 
     // =============================
-    // 6️⃣ Sorting
+    // 9️⃣ SORTING (SAFE)
     // =============================
-    // const sortMap = {
-    //   confirmationNumber: r => r.confirmationNumber.toString(),
-    //   guestName: r => r.mainGuestName.toLowerCase(),
-    //   travelAgent: r =>
-    //     typeof r.travelAgent === "object"
-    //       ? r.travelAgent.name.toLowerCase()
-    //       : "",
-    //   arriveDate: r => new Date(r.arriveDate),
-    //   departDate: r => new Date(r.departDate)
-    // };
+    const sortMap = {
+      arriveDate: r => new Date(r.arriveDate),
+      departDate: r => new Date(r.departDate),
+      roomsCount: r => r.roomsCount
+    };
 
-    // if (sortMap[sortBy]) {
-    //   result.sort((a, b) => {
-    //     const A = sortMap[sortBy](a);
-    //     const B = sortMap[sortBy](b);
-    //     if (A > B) return order;
-    //     if (A < B) return -order;
-    //     return 0;
-    //   });
-    // }
+    if (sortMap[sortBy]) {
+      result.sort((a, b) => {
+        const A = sortMap[sortBy](a);
+        const B = sortMap[sortBy](b);
+        if (A > B) return order;
+        if (A < B) return -order;
+        return 0;
+      });
+    }
 
     // =============================
-    // 7️⃣ Pagination
+    // 🔟 PAGINATION
     // =============================
     const total = result.length;
     const paginatedData = result.slice(skip, skip + limitNum);
 
     // =============================
-    // 8️⃣ Response
+    // 1️⃣1️⃣ RESPONSE
     // =============================
     return res.status(200).json({
       success: true,
@@ -470,7 +476,7 @@ if (fromDate || toDate) {
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("getHotelReservations error:", error);
     return res.status(500).json({
       success: false,
       message: "Server error"
