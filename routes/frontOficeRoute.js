@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const frontoffice = require("../controller/front-office");
+const recommendationController = require("../controller/recommendationController");
 const authController = require("../controller/authController");
 
 // 🔐 protect all routes
@@ -12,6 +13,9 @@ router.get("/arrivals", frontoffice.getUpcomingArrivals);
 router.get("/departures", frontoffice.getDepartures);
 router.get("/inhouse", frontoffice.getInHouse);
 router.get("/noshow", frontoffice.getNoShow);
+
+// AI recommendation for front desk
+router.post("/recommendation", recommendationController.getRecommendation);
 
 // 🏨 front office actions
 router.patch("/:id/check-in", frontoffice.checkIn);
