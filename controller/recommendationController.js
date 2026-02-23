@@ -55,10 +55,15 @@ Keep it concise and actionable.
     // =============================
     // 3️⃣ OpenRouter config
     // =============================
-    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+    // Helpful debug: log the key presence (not value) and model
+    console.log(
+      "Env OPENROUTER_API_KEY set?",
+      !!process.env.OPENROUTER_API_KEY
+    );
     console.log("Using OpenRouter Model:", process.env.OPENROUTER_MODEL);
+
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
     const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "gpt-3.5-mini";
-    
 
     if (!OPENROUTER_API_KEY) {
       return res.status(500).json({
