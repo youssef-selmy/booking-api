@@ -139,7 +139,7 @@ Keep it concise.
     // Call Gemini Text-Bison-001
     // =============================
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/text-bison-001:generateText?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/google/gemini-2.0-flash-001:generateText?key=${GEMINI_API_KEY}`,
       {
         prompt: { text: prompt },   // ✅ wrap prompt in { text: ... }
         temperature: 0.3,
