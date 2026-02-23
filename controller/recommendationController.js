@@ -1,8 +1,9 @@
 const axios = require('axios');
 const Reservation = require('../models/Reservation');
 const Hotel = require('../models/hotelModel');
-const dotenv = require('dotenv');
-dotenv.config({ path: 'config.env' });
+// const path = require('path');
+// const dotenv = require('dotenv');
+// dotenv.config({ path: path.join(__dirname, '..', 'config.env') });
 // POST /api/v1/front-office/recommendation
 // Uses ONLY hotelId from token
 exports.getRecommendation = async (req, res) => {
