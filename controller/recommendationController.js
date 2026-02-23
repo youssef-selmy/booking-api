@@ -168,7 +168,7 @@ Keep it concise.
   },
   {
     headers: {
-      Authorization: `Bearer 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`,
+      Authorization: `Bearer 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`,
       "Content-Type": "application/json",
 
       // ✅ REQUIRED BY OPENROUTER
