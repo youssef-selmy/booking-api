@@ -286,6 +286,7 @@ exports.getAvailableRooms = async (req, res) => {
 exports.getHotelReservations = async (req, res) => {
   try {
     const hotelId = req.user.hotel;
+
     const {
       guest,
       status,
@@ -295,7 +296,11 @@ exports.getHotelReservations = async (req, res) => {
       minRooms,
       maxRooms,
       minNights,
-      maxNights
+      maxNights,
+      page = 1,
+      limit = 10,
+      sortBy = "arriveDate",
+      sortOrder = "asc"
     } = req.query;
 
     if (!hotelId) {
@@ -305,13 +310,15 @@ exports.getHotelReservations = async (req, res) => {
       });
     }
 
-    // =============================
-    // 1️⃣ Build base DB filter
-    // =============================
-  const dbFilter = {
-  hotel: hotelId
-};
+    const pageNum = Math.max(Number(page), 1);
+    const limitNum = Math.min(Number(limit), 100);
+    const skip = (pageNum - 1) * limitNum;
+    const order = sortOrder === "desc" ? -1 : 1;
 
+    // =============================
+    // 1️⃣ Build DB filter
+    // =============================
+    const dbFilter = { hotel: hotelId };
 
     if (status) dbFilter.status = status;
     if (stayStatus) dbFilter.stayStatus = stayStatus;
@@ -323,32 +330,32 @@ exports.getHotelReservations = async (req, res) => {
     }
 
     // =============================
-    // 2️⃣ Fetch & populate rooms
+    // 2️⃣ Fetch reservations
     // =============================
-const reservations = await Reservation.find(dbFilter)
-  .populate({
-    path: "rooms.room",
-    match: { hotel: hotelId },
-    select: "hotel"
-  })
-  .populate({
-    path: "travelAgent",
-    select: "_id name"
-  })
-  .lean(); // ✅ now it’s safe
+    const reservations = await Reservation.find(dbFilter)
+      .populate({
+        path: "rooms.room",
+        match: { hotel: hotelId },
+        select: "hotel"
+      })
+      .populate({
+        path: "travelAgent",
+        select: "_id name"
+      })
+      .lean();
 
     // =============================
-    // 3️⃣ Keep only hotel reservations
+    // 3️⃣ Keep only hotel rooms
     // =============================
     let hotelReservations = reservations.filter(r =>
       r.rooms.some(room => room.room !== null)
     );
 
     // =============================
-    // 4️⃣ In-memory filters (response-based)
+    // 4️⃣ In-memory filters
     // =============================
 
-    // Guest name filter
+    // Guest name
     if (guest) {
       const g = guest.toLowerCase();
       hotelReservations = hotelReservations.filter(r =>
@@ -361,9 +368,9 @@ const reservations = await Reservation.find(dbFilter)
     // Rooms count
     if (minRooms || maxRooms) {
       hotelReservations = hotelReservations.filter(r => {
-        const roomsCount = r.rooms.filter(room => room.room !== null).length;
-        if (minRooms && roomsCount < Number(minRooms)) return false;
-        if (maxRooms && roomsCount > Number(maxRooms)) return false;
+        const count = r.rooms.filter(room => room.room !== null).length;
+        if (minRooms && count < Number(minRooms)) return false;
+        if (maxRooms && count > Number(maxRooms)) return false;
         return true;
       });
     }
@@ -379,29 +386,71 @@ const reservations = await Reservation.find(dbFilter)
     }
 
     // =============================
-    // 5️⃣ Final response formatting
+    // 5️⃣ Format response
     // =============================
-    const result = hotelReservations.map(r => {
+    let result = hotelReservations.map(r => {
       const hotelRooms = r.rooms.filter(room => room.room !== null);
+      const nights = r.rooms?.[0]?.nights || 0;
 
       return {
         confirmationNumber: r._id,
         mainGuestName: `${r.mainGuest.firstName} ${r.mainGuest.lastName}`,
         travelAgent: r.travelAgent
-        ? { id: r.travelAgent._id, name: r.travelAgent.name }
-        : "-",
+          ? { id: r.travelAgent._id, name: r.travelAgent.name }
+          : "-",
         roomsCount: hotelRooms.length,
         arriveDate: r.checkIn,
-        reservedNights: r.rooms?.[0]?.nights || 0,
+        departDate: new Date(
+          new Date(r.checkIn).getTime() + nights * 86400000
+        ),
+        reservedNights: nights,
         status: r.status,
         stayStatus: r.stayStatus
       };
     });
 
+    // =============================
+    // 6️⃣ Sorting
+    // =============================
+    const sortMap = {
+      confirmationNumber: r => r.confirmationNumber.toString(),
+      guestName: r => r.mainGuestName.toLowerCase(),
+      travelAgent: r =>
+        typeof r.travelAgent === "object"
+          ? r.travelAgent.name.toLowerCase()
+          : "",
+      arriveDate: r => new Date(r.arriveDate),
+      departDate: r => new Date(r.departDate)
+    };
+
+    if (sortMap[sortBy]) {
+      result.sort((a, b) => {
+        const A = sortMap[sortBy](a);
+        const B = sortMap[sortBy](b);
+        if (A > B) return order;
+        if (A < B) return -order;
+        return 0;
+      });
+    }
+
+    // =============================
+    // 7️⃣ Pagination
+    // =============================
+    const total = result.length;
+    const paginatedData = result.slice(skip, skip + limitNum);
+
+    // =============================
+    // 8️⃣ Response
+    // =============================
     return res.status(200).json({
       success: true,
-      count: result.length,
-      data: result
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum)
+      },
+      data: paginatedData
     });
 
   } catch (error) {
