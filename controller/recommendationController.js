@@ -6,35 +6,17 @@ const Hotel = require('../models/hotelModel');
 // dotenv.config({ path: path.join(__dirname, '..', 'config.env') });
 // POST /api/v1/front-office/recommendation
 // Uses ONLY hotelId from token
+
+
 exports.getRecommendation = async (req, res) => {
   try {
-    // ✅ hotelId ONLY from token
     const hotelId = req.user?.hotel?.toString();
+    if (!hotelId)
+      return res.status(403).json({ status: "error", message: "Hotel ID not found in token" });
 
-    if (!hotelId) {
-      return res.status(403).json({
-        status: "error",
-        message: "Hotel ID not found in token"
-      });
-    }
+    const hotel = await Hotel.findById(hotelId).select("name city country stars amenities").lean();
+    if (!hotel) return res.status(404).json({ status: "error", message: "Hotel not found" });
 
-    // =============================
-    // 1️⃣ Fetch hotel basic context
-    // =============================
-    const hotel = await Hotel.findById(hotelId)
-      .select("name city country stars amenities")
-      .lean();
-
-    if (!hotel) {
-      return res.status(404).json({
-        status: "error",
-        message: "Hotel not found"
-      });
-    }
-
-    // =============================
-    // 2️⃣ Build AI prompt (GENERAL)
-    // =============================
     const prompt = `
 Hotel name: ${hotel.name}
 Location: ${hotel.city || ""} ${hotel.country || ""}
@@ -48,85 +30,37 @@ Focus on:
 - upselling opportunities
 - service tips
 - local tips if relevant
-
 Keep it concise and actionable.
 `;
 
-    // =============================
-    // 3️⃣ OpenRouter config
-    // =============================
-    // Helpful debug: log the key presence (not value) and model
-    console.log(
-      "Env OPENROUTER_API_KEY set?",
-      !!process.env.OPENROUTER_API_KEY
-    );
-    console.log("Using OpenRouter Model:", process.env.OPENROUTER_MODEL);
+    const OPENAI_API_KEY = "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";
+    if (!OPENAI_API_KEY)
+      return res.status(500).json({ status: "error", message: "OpenAI API key not configured" });
 
-    const OPENROUTER_API_KEY ="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" || process.env.OPENROUTER_API_KEY;
-    const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "gpt-3.5-mini";
-
-    if (!OPENROUTER_API_KEY) {
-      return res.status(500).json({
-        status: "error",
-        message: "OpenRouter API key not configured"
-      });
-    }
-
-    const body = {
-      model: "google/gemini-2.0-flash-001",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a professional hotel front-desk assistant. Give concise, practical, and polite recommendations."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      max_tokens: 300,
-      temperature: 0.3
-    };
-
-    // =============================
-    // 4️⃣ Call OpenRouter
-    // =============================
     const resp = await axios.post(
-      "https://api.openrouter.ai/v1/chat/completions",
-      body,
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: "You are a professional hotel front-desk assistant." },
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 300,
+        temperature: 0.3
+      },
       {
         headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json"
-        },
-        timeout: 15000
+        }
       }
     );
 
-    const content =
-      resp.data?.choices?.[0]?.message?.content ||
-      resp.data?.choices?.[0]?.text ||
-      "";
-
-    // =============================
-    // 5️⃣ Response
-    // =============================
-    return res.status(200).json({
-      status: "success",
-      hotelId,
-      recommendation: content.trim()
-    });
+    const content = resp.data?.choices?.[0]?.message?.content || "";
+    return res.status(200).json({ status: "success", hotelId, recommendation: content.trim() });
 
   } catch (err) {
-    console.error(
-      "Recommendation error:",
-      err?.response?.data || err.message
-    );
-
-    return res.status(500).json({
-      status: "error",
-      message: "Failed to get recommendation"
-    });
+    console.error("Recommendation error:", err?.response?.data || err.message);
+    return res.status(500).json({ status: "error", message: "Failed to get recommendation" });
   }
 };
