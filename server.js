@@ -29,7 +29,7 @@ const frontOffice=require('./routes/frontOficeRoute.js')
 const inventoryRoute=require('./routes/inventoryRoute')
 const travelAgentRoutes = require("./routes/travelAgentRoutes");
 const reportsRoute = require("./routes/reportRoutes");
-
+const roomDiaryRoute = require("./routes/roomDiaryRoute");
 
 
 
@@ -106,6 +106,7 @@ app.use("/api/v1/front-office", frontOffice);
 app.use('/api/v1/inventory',inventoryRoute);
 app.use("/api/v1/travel-agents", travelAgentRoutes);
 app.use("/api/v1/reports", reportsRoute);
+app.use('/api/v1/room-diary', roomDiaryRoute);
 //api/v1/reports/expected-arrivals
 
 app.all('*', (req, res, next) => {
