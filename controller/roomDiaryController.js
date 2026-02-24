@@ -68,7 +68,7 @@ exports.getRoomDiary = asyncHandler(async (req, res, next) => {
   // 📆 5. Generate 6 Days (Today + 5)
   // =========================
   const daysArray = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 5; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
     daysArray.push(date);
