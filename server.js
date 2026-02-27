@@ -30,6 +30,7 @@ const inventoryRoute=require('./routes/inventoryRoute')
 const travelAgentRoutes = require("./routes/travelAgentRoutes");
 const reportsRoute = require("./routes/reportRoutes");
 const roomDiaryRoute = require("./routes/roomDiaryRoute");
+const settingsRoute = require("./routes/settingsRoute");
 
 
 
@@ -107,7 +108,7 @@ app.use('/api/v1/inventory',inventoryRoute);
 app.use("/api/v1/travel-agents", travelAgentRoutes);
 app.use("/api/v1/reports", reportsRoute);
 app.use('/api/v1/room-diary', roomDiaryRoute);
-//api/v1/reports/expected-arrivals
+app.use('/api/v1/settings', settingsRoute);
 
 app.all('*', (req, res, next) => {
   next(new ApiError(`Can't find this route: ${req.originalUrl}`, 400));
