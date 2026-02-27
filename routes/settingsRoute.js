@@ -5,7 +5,7 @@ const {
   getTerms,
   createTerms,
   updateTerms,
-} = require("../controllers/settingsController");
+} = require("../controller/settingsController");
 
 const { protect } = require("../middlewares/authMiddleware");
 
