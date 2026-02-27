@@ -16,6 +16,7 @@ router.get("/noshow", frontoffice.getNoShow);
 
 // AI recommendation for front desk
 router.post("/recommendation", recommendationController.getRecommendation);
+router.post("/manager-recommendation", recommendationController.getManagerRecommendation);
 
 // 🏨 front office actions
 router.patch("/:id/check-in", frontoffice.checkIn);
