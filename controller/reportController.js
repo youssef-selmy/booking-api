@@ -330,30 +330,47 @@ exports.getManagerFlashReport = asyncHandler(async (req, res) => {
 // GET /api/reports/folio-history
 // ========================================
 // 🧾 Folio History Report (SECURE - Hotel from Token)
+// 🧾 Folio History Report (SECURE - Hotel from Token)
 exports.getFolioHistoryReport = asyncHandler(async (req, res) => {
-  // 🔥 HOTEL FROM TOKEN (VERY IMPORTANT)
   const hotelId = req.user.hotel;
 
-  const { fromDate, toDate, stayStatus, status, travelAgent } = req.query;
+  const {
+    fromDate,
+    toDate,
+    stayStatus,
+    status,
+    travelAgent,
+    confirmationNumber // 🔥 NEW
+  } = req.query;
 
   const filter = {
     hotel: new mongoose.Types.ObjectId(hotelId)
   };
 
+  // 🔥 CONFIRMATION NUMBER FILTER (ObjectId safe)
+  if (confirmationNumber && mongoose.Types.ObjectId.isValid(confirmationNumber)) {
+    filter._id = new mongoose.Types.ObjectId(confirmationNumber);
+  }
+
   if (status) filter.status = status;
   if (stayStatus) filter.stayStatus = stayStatus;
 
-  if (travelAgent) {
+  if (travelAgent && mongoose.Types.ObjectId.isValid(travelAgent)) {
     filter.travelAgent = new mongoose.Types.ObjectId(travelAgent);
   }
 
   if (fromDate || toDate) {
     filter.createdAt = {};
     if (fromDate) filter.createdAt.$gte = new Date(fromDate);
-    if (toDate) filter.createdAt.$lte = new Date(toDate);
+    if (toDate) {
+      const to = new Date(toDate);
+      to.setHours(23, 59, 59, 999); // 🔥 include full day
+      filter.createdAt.$lte = to;
+    }
   }
 
   const reservations = await Reservation.find(filter)
+    .populate("travelAgent", "name") // 🔥 so frontend shows name
     .sort({ createdAt: -1 });
 
   let totalRevenue = 0;
