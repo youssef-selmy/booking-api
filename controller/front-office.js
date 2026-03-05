@@ -72,8 +72,8 @@ exports.getDepartures = async (req, res) => {
 
     const reservations = await Reservation.find({
       checkOut: { $gte: today, $lte: fiveDaysLater },
-            stayStatus: "checked-in",          // 🔥 IMPORTANT
-            status: { $ne: "canceled" },       // 🔒 safety
+            stayStatus: "checked-in",          
+            status: { $ne: "canceled" },       
       hotel: hotelId
 
     })
@@ -229,20 +229,22 @@ await Promise.all(
 exports.checkOut = async (req, res) => {
   try {
     const { id } = req.params;
-    const hotelId = req.user.hotel;
+    const hotelId = req.user?.hotel;
+    if (!hotelId) {
+      return res.status(403).json({ message: "Hotel ID not found in token" });
+    }
 
+    const reservation = await Reservation.findOne({
+      _id: id,
+      hotel: hotelId
+    }).populate("rooms.room");
 
-    const reservation = await Reservation.findById(id).populate("rooms.room");
-
-    if (!reservation)
-      return res.status(404).json({ message: "Reservation not found" });
+    if (!reservation) {
+      return res.status(404).json({ message: "Reservation not found for this hotel" });
+    }
 
     if (reservation.stayStatus !== "checked-in")
       return res.status(400).json({ message: "Guest is not checked in" });
-
-   if (!reservation.hotel.equals(hotelId)) {
-  return res.status(403).json({ message: "Unauthorized hotel" });
-}
 
 
     if (reservation.remainingAmount > 0)
@@ -254,12 +256,15 @@ exports.checkOut = async (req, res) => {
     // reservation.actualCheckOut = new Date();
 
     // 🏨 free rooms
-  await Promise.all(
-  reservation.rooms.map(r => {
-    r.room.status = "cleaning";
-    return r.room.save();
-  })
-);
+    await Promise.all(
+      reservation.rooms.map((r) => {
+        if (!r.room || typeof r.room.save !== "function") {
+          return Promise.resolve();
+        }
+        r.room.status = "cleaning";
+        return r.room.save();
+      })
+    );
 
 
     await reservation.save();

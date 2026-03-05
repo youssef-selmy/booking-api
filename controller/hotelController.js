@@ -24,7 +24,7 @@ const uploadToCloudinary = async (file, folder) => {
 // @desc    Get list of users
 // @route   GET /api/v1/users
 // @access  Private/Admin
-exports.getHotels = factory.getAll(Hotel);
+exports.getHotels = factory.getAll(Hotel, '', { paginate: false });
 
 // @desc    Get specific user by id
 // @route   GET /api/v1/users/:id

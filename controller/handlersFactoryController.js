@@ -66,7 +66,7 @@ exports.getOne = (Model) =>
   });
 
 
-exports.getAll = (Model, modelName = '') =>
+exports.getAll = (Model, modelName = '', options = {}) =>
   asyncHandler(async (req, res) => {
     let filter = {};
     if (req.filterObj) {
@@ -74,6 +74,7 @@ exports.getAll = (Model, modelName = '') =>
     }
 
     const isAll = req.query.all === 'true';
+    const shouldPaginate = options.paginate !== false;
 
     // Build base query
     let apiFeatures = new ApiFeatures(Model.find(filter), req.query)
@@ -85,7 +86,7 @@ exports.getAll = (Model, modelName = '') =>
     let paginationResult;
 
     // ✅ Apply pagination ONLY if all !== true
-    if (!isAll) {
+    if (shouldPaginate && !isAll) {
       const documentsCounts = await Model.countDocuments(filter);
       apiFeatures = apiFeatures.paginate(documentsCounts);
       paginationResult = apiFeatures.paginationResult;

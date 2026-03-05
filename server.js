@@ -35,9 +35,6 @@ const settingsRoute = require("./routes/settingsRoute");
 
 
 
-// Connect with db
- dbConnection();
-
 // express app
 const app = express();
 
@@ -120,15 +117,29 @@ app.use(globalError);
 ////////////////////////////
 
 const PORT = process.env.PORT;
-const server = app.listen(PORT, () => {
-  console.log(`App running running on port ${PORT}`);
+let server;
+
+const startServer = async () => {
+  await dbConnection();
+  server = app.listen(PORT, () => {
+    console.log(`App running running on port ${PORT}`);
+  });
+};
+
+startServer().catch((err) => {
+  console.error(`Failed to connect to database: ${err.message}`);
+  process.exit(1);
 });
 
 // Handle rejection outside express
 process.on('unhandledRejection', (err) => {
   console.error(`UnhandledRejection Errors: ${err.name} | ${err.message}`);
-  server.close(() => {
-    console.error(`Shutting down....`);
-    process.exit(1);
-  });
+  if (server) {
+    server.close(() => {
+      console.error(`Shutting down....`);
+      process.exit(1);
+    });
+    return;
+  }
+  process.exit(1);
 });
