@@ -43,8 +43,28 @@ const app = express();
 
 
 // Enable other domains to access your application
-app.use(cors());
-app.options('*', cors());
+const allowedOrigins = [
+  'https://partners-checkin.com',
+  'https://www.partners-checkin.com',
+  'https://admin.partners-checkin.com',
+  'http://localhost:3000',
+  'http://localhost:5173',
+];
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Allow non-browser clients like Postman/curl.
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // compress all responses
 app.use(compression());
