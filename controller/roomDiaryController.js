@@ -18,7 +18,10 @@ exports.getRoomDiary = asyncHandler(async (req, res, next) => {
   // =========================
   // 🛏️ 2. Get ONLY Hotel Rooms
   // =========================
-  const rooms = await Room.find({ hotel: hotelId })
+  const rooms = await Room.find({
+    hotel: hotelId,
+    status: { $nin: ['maintenance', 'cleaning'] }
+  })
     .select('_id roomNumber status floor')
     .sort({ roomNumber: 1 });
 

@@ -5,6 +5,7 @@ const {
   getTerms,
   createTerms,
   updateTerms,
+  getSettingsLogs,
 } = require("../controller/settingsController");
 
 const { protect } = require("../controller/authController");
@@ -17,5 +18,7 @@ router
   .get(getTerms)
   .post(createTerms)
   .put(updateTerms);
+
+router.get("/logs", getSettingsLogs);
 
 module.exports = router;
