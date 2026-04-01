@@ -18,13 +18,12 @@ exports.getUpcomingArrivals = async (req, res) => {
 today.setUTCHours(0, 0, 0, 0);
 
 
-  const fiveDaysLater = new Date(today);
-fiveDaysLater.setUTCDate(fiveDaysLater.getUTCDate() + 6);
-fiveDaysLater.setUTCHours(23, 59, 59, 999);
+  const endOfToday = new Date(today);
+endOfToday.setUTCHours(23, 59, 59, 999);
 
 
     const reservations = await Reservation.find({
-      checkIn: { $gte: today, $lt: fiveDaysLater },
+      checkIn: { $gte: today, $lt: endOfToday },
       stayStatus: "reserved",          // 🔥 KEY FIX
       status: { $ne: "canceled" },  
       hotel: hotelId
@@ -66,12 +65,11 @@ exports.getDepartures = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const fiveDaysLater = new Date(today);
-    fiveDaysLater.setDate(fiveDaysLater.getDate() + 6);
-    fiveDaysLater.setHours(23, 59, 59, 999);
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
 
     const reservations = await Reservation.find({
-      checkOut: { $gte: today, $lte: fiveDaysLater },
+      checkOut: { $gte: today, $lte: endOfToday },
             stayStatus: "checked-in",          
             status: { $ne: "canceled" },       
       hotel: hotelId
