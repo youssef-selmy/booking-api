@@ -296,6 +296,7 @@ exports.getHotelReservations = async (req, res) => {
 
     const {
       guest,
+      confirmationNumber,
       status,
       stayStatus,
       fromDate,
@@ -320,7 +321,30 @@ exports.getHotelReservations = async (req, res) => {
     };
 
     if (status) dbFilter.status = status;
-    if (stayStatus) dbFilter.stayStatus = stayStatus;
+    if (stayStatus) {
+      dbFilter.stayStatus = stayStatus;
+    } else {
+      dbFilter.stayStatus = { $nin: ["checked-in"] };
+    }
+
+    if (confirmationNumber) {
+      const normalizedConfirmationNumber = String(confirmationNumber).trim();
+
+      if (/^[0-9a-fA-F]{24}$/.test(normalizedConfirmationNumber)) {
+        dbFilter._id = normalizedConfirmationNumber;
+      } else {
+        return res.status(200).json({
+          success: true,
+          pagination: {
+            total: 0,
+            page: pageNum,
+            limit: limitNum,
+            totalPages: 0
+          },
+          data: []
+        });
+      }
+    }
 
     // =============================
     // 2️⃣ FETCH RESERVATIONS

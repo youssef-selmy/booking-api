@@ -115,12 +115,41 @@ travelAgent: {
   ref: "TravelAgent"
   
 },
+channelManager: {
+  provider: {
+    type: String,
+    trim: true
+  },
+  externalReservationId: {
+    type: String,
+    trim: true
+  },
+  externalRoomIds: [{
+    type: String,
+    trim: true
+  }],
+  importedAt: Date,
+  lastSyncAt: Date,
+  rawReservation: mongoose.Schema.Types.Mixed
+},
 
 
 // actualCheckIn: Date,
 // actualCheckOut: Date,
 
 }, { timestamps: true });
+
+reservationSchema.index(
+  {
+    hotel: 1,
+    "channelManager.provider": 1,
+    "channelManager.externalReservationId": 1
+  },
+  {
+    unique: true,
+    sparse: true
+  }
+);
 
 
 reservationSchema.pre("save", async function (next) {

@@ -8,6 +8,7 @@ Backend API for hotel booking and front-office operations. It covers authenticat
 - Front-office workflows (arrivals, departures, in-house, no-show, check-in, check-out)
 - Inventory and housekeeping status management
 - Reporting endpoints for operations and audit
+- Channel management connection and reservation sync for Booking.com, Opera Cloud, SiteMinder, Cloudbeds, or custom middleware
 
 **Tech Stack**
 - Node.js, Express
@@ -42,6 +43,7 @@ The app loads variables from `config.env`.
 | `CLOUDINARY_API_KEY` | Optional | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Optional | Cloudinary API secret |
 | `OPENROUTER_API_KEY` | Optional | AI recommendation provider key |
+| `CHANNEL_SYNC_TIMEOUT_MS` | Optional | Timeout for channel-provider sync requests |
 
 **Scripts**
 - `npm run dev` starts the server with nodemon
@@ -49,3 +51,48 @@ The app loads variables from `config.env`.
 
 **API Documentation**
 See `docs/API.md` for full endpoint reference, examples, and auth details.
+
+**Channel Management**
+- `GET /api/v1/channel-management/providers` lists the supported provider codes.
+- `GET /api/v1/channel-management/connection` returns the current hotel connection.
+- `PUT /api/v1/channel-management/connection` saves provider settings, credentials, field mapping, and room mapping.
+- `POST /api/v1/channel-management/sync` pulls reservations from the configured provider endpoint, or accepts a `reservations` array in the request body.
+- `POST /api/v1/channel-management/import` imports a normalized `reservations` array manually.
+
+Example connection payload:
+```json
+{
+  "provider": "siteminder",
+  "connectionMode": "api",
+  "baseUrl": "https://your-middleware.example.com",
+  "reservationsPath": "/reservations",
+  "authType": "bearer",
+  "credentials": {
+    "token": "provider-token"
+  },
+  "propertyId": "hotel-123",
+  "defaultRate": 120,
+  "roomMap": [
+    { "externalRoomId": "DLX-01", "localRoomNumber": "101" },
+    { "externalRoomId": "DLX-02", "localRoomNumber": "102" }
+  ]
+}
+```
+
+Example manual import payload:
+```json
+{
+  "reservations": [
+    {
+      "externalReservationId": "BK-10001",
+      "guest": { "firstName": "John", "lastName": "Doe" },
+      "checkIn": "2026-04-10",
+      "checkOut": "2026-04-12",
+      "roomIds": ["DLX-01"],
+      "totalAmount": 240,
+      "paidAmount": 100,
+      "status": "confirmed"
+    }
+  ]
+}
+```

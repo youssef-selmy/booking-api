@@ -344,7 +344,8 @@ exports.getFolioHistoryReport = asyncHandler(async (req, res) => {
   } = req.query;
 
   const filter = {
-    hotel: new mongoose.Types.ObjectId(hotelId)
+    hotel: new mongoose.Types.ObjectId(hotelId),
+    stayStatus: "checked-out"
   };
 
   // 🔥 CONFIRMATION NUMBER FILTER (ObjectId safe)
@@ -353,7 +354,7 @@ exports.getFolioHistoryReport = asyncHandler(async (req, res) => {
   }
 
   if (status) filter.status = status;
-  if (stayStatus) filter.stayStatus = stayStatus;
+  if (stayStatus === "checked-out") filter.stayStatus = stayStatus;
 
   if (travelAgent && mongoose.Types.ObjectId.isValid(travelAgent)) {
     filter.travelAgent = new mongoose.Types.ObjectId(travelAgent);
