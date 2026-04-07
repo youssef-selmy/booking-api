@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const ApiError = require('../utils/apiError');
 const Packages = require('../models/roomPackageModel');
+const { createHotelLog } = require("../utils/hotelLog");
 
 // @desc    Get list of packages for specific hotel
 // @route   GET /api/v1/packages
@@ -49,6 +50,14 @@ exports.createPackage = asyncHandler(async (req, res, next) => {
 
   const pkg = await Packages.create(req.body);
 
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "create",
+    target: "package",
+    details: { packageId: pkg._id, name: pkg.name },
+  });
+
   res.status(201).json({
     success: true,
     data: pkg,
@@ -69,6 +78,14 @@ exports.updatePackage = asyncHandler(async (req, res, next) => {
     return next(new ApiError('Package not found or not authorized', 404));
   }
 
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "update",
+    target: "package",
+    details: { packageId: pkg._id, name: pkg.name },
+  });
+
   res.status(200).json({
     success: true,
     data: pkg,
@@ -87,6 +104,14 @@ exports.deletePackage = asyncHandler(async (req, res, next) => {
   if (!pkg) {
     return next(new ApiError('Package not found or not authorized', 404));
   }
+
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "delete",
+    target: "package",
+    details: { packageId: pkg._id, name: pkg.name },
+  });
 
   res.status(204).send();
 });

@@ -4,6 +4,7 @@ const factory = require('./handlersFactoryController');
 const ApiError = require('../utils/apiError');
 
 const Room = require('../models/roomModel');
+const { createHotelLog } = require("../utils/hotelLog");
 
 
 
@@ -59,6 +60,18 @@ exports.createRoom = asyncHandler(async (req, res, next) => {
 
   const room = await Room.create(req.body);
 
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "create",
+    target: "room",
+    details: {
+      roomId: room._id,
+      roomNumber: room.roomNumber,
+      status: room.status,
+    },
+  });
+
   res.status(201).json({
     success: true,
     data: room,
@@ -79,6 +92,18 @@ exports.updateRoom = asyncHandler(async (req, res, next) => {
     return next(new ApiError('Room not found or not authorized', 404));
   }
 
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "update",
+    target: "room",
+    details: {
+      roomId: room._id,
+      roomNumber: room.roomNumber,
+      status: room.status,
+    },
+  });
+
   res.status(200).json({
     success: true,
     data: room,
@@ -97,6 +122,18 @@ exports.deleteRoom = asyncHandler(async (req, res, next) => {
   if (!room) {
     return next(new ApiError('Room not found or not authorized', 404));
   }
+
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "delete",
+    target: "room",
+    details: {
+      roomId: room._id,
+      roomNumber: room.roomNumber,
+      status: room.status,
+    },
+  });
 
   res.status(204).send();
 });

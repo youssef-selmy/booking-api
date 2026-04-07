@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const ApiError = require('../utils/apiError');
 const RoomType = require('../models/roomTypeModel');
+const { createHotelLog } = require("../utils/hotelLog");
 
 // @desc    Get all room types for specific hotel
 // @route   GET /api/v1/room-types
@@ -56,6 +57,14 @@ exports.createRoomType = asyncHandler(async (req, res, next) => {
 
   const newRoomType = await RoomType.create(req.body);
 
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "create",
+    target: "room-type",
+    details: { roomTypeId: newRoomType._id, name: newRoomType.name },
+  });
+
   res.status(201).json({
     success: true,
     data: newRoomType,
@@ -76,6 +85,14 @@ exports.updateRoomType = asyncHandler(async (req, res, next) => {
     return next(new ApiError('Room type not found or not authorized', 404));
   }
 
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "update",
+    target: "room-type",
+    details: { roomTypeId: updated._id, name: updated.name },
+  });
+
   res.status(200).json({
     success: true,
     data: updated,
@@ -94,6 +111,14 @@ exports.deleteRoomType = asyncHandler(async (req, res, next) => {
   if (!deleted) {
     return next(new ApiError('Room type not found or not authorized', 404));
   }
+
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "delete",
+    target: "room-type",
+    details: { roomTypeId: deleted._id, name: deleted.name },
+  });
 
   res.status(204).send();
 });

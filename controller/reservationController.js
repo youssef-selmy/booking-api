@@ -3,6 +3,7 @@ const factory = require('./handlersFactoryController');
 const ApiError = require('../utils/apiError');
 const Reservation = require('../models/Reservation');
 const Room = require("../models/roomModel");
+const { createHotelLog } = require("../utils/hotelLog");
 // @desc    Get list of reservations
 // @route   GET /api/v1/reservations
 // @access  Private/Admin
@@ -77,7 +78,25 @@ exports.setHotelToBody = (req, res, next) => {
 // @access  Private/Admin
 exports.createReservation = [
   exports.setHotelToBody,
-  factory.createOne(Reservation)
+  asyncHandler(async (req, res) => {
+    const newReservation = await Reservation.create(req.body);
+
+    await createHotelLog({
+      hotel: req.user?.hotel,
+      user: req.user?._id,
+      action: "create",
+      target: "reservation",
+      details: {
+        reservationId: newReservation._id,
+        confirmationNumber: newReservation._id,
+        guest: `${newReservation.mainGuest?.firstName || ""} ${newReservation.mainGuest?.lastName || ""}`.trim(),
+        stayStatus: newReservation.stayStatus,
+        status: newReservation.status,
+      },
+    });
+
+    res.status(201).json({ data: newReservation });
+  })
 ];
 
 
@@ -133,6 +152,20 @@ exports.updateReservation = asyncHandler(async (req, res, next) => {
   // Save triggers pre-save middleware to recalc totals
   await reservation.save();
 
+  await createHotelLog({
+    hotel: req.user?.hotel || reservation.hotel,
+    user: req.user?._id,
+    action: "update",
+    target: "reservation",
+    details: {
+      reservationId: reservation._id,
+      confirmationNumber: reservation._id,
+      guest: `${reservation.mainGuest?.firstName || ""} ${reservation.mainGuest?.lastName || ""}`.trim(),
+      status: reservation.status,
+      stayStatus: reservation.stayStatus,
+    },
+  });
+
   res.status(200).json({
     status: "success",
     data: reservation,
@@ -142,7 +175,29 @@ exports.updateReservation = asyncHandler(async (req, res, next) => {
 // @desc    Delete specific reservation
 // @route   DELETE /api/v1/reservations/:id
 // @access  Private/Admin
-exports.deleteReservation = factory.deleteOne(Reservation);
+exports.deleteReservation = asyncHandler(async (req, res, next) => {
+  const reservation = await Reservation.findById(req.params.id);
+
+  if (!reservation) {
+    return next(new ApiError("Reservation not found", 404));
+  }
+
+  await Reservation.findByIdAndDelete(req.params.id);
+
+  await createHotelLog({
+    hotel: req.user?.hotel || reservation.hotel,
+    user: req.user?._id,
+    action: "delete",
+    target: "reservation",
+    details: {
+      reservationId: reservation._id,
+      confirmationNumber: reservation._id,
+      guest: `${reservation.mainGuest?.firstName || ""} ${reservation.mainGuest?.lastName || ""}`.trim(),
+    },
+  });
+
+  res.status(204).send();
+});
 
 
 

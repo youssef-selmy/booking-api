@@ -1,5 +1,6 @@
 const Reservation = require("../models/Reservation");
   const mongoose = require("mongoose");
+const { createHotelLog } = require("../utils/hotelLog");
 
 
 
@@ -215,6 +216,20 @@ await Promise.all(
 
     await reservation.save();
 
+    await createHotelLog({
+      hotel: hotelId,
+      user: req.user?._id,
+      action: "check-in",
+      target: "reservation",
+      details: {
+        reservationId: reservation._id,
+        confirmationNumber: reservation._id,
+        guest: `${reservation.mainGuest?.firstName || ""} ${reservation.mainGuest?.lastName || ""}`.trim(),
+        stayStatus: reservation.stayStatus,
+        status: reservation.status,
+      },
+    });
+
     res.json({ message: "Checked in successfully", reservation });
 
   } catch (err) {
@@ -266,6 +281,20 @@ exports.checkOut = async (req, res) => {
 
 
     await reservation.save();
+
+    await createHotelLog({
+      hotel: hotelId,
+      user: req.user?._id,
+      action: "check-out",
+      target: "reservation",
+      details: {
+        reservationId: reservation._id,
+        confirmationNumber: reservation._id,
+        guest: `${reservation.mainGuest?.firstName || ""} ${reservation.mainGuest?.lastName || ""}`.trim(),
+        stayStatus: reservation.stayStatus,
+        status: reservation.status,
+      },
+    });
 
     res.json({ message: "Checked out successfully", reservation });
 

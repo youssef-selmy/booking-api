@@ -2,14 +2,7 @@ const asyncHandler = require("express-async-handler");
 const Settings = require("../models/settingsModel");
 const SettingsLog = require("../models/settingsLogModel");
 const ApiError = require("../utils/apiError");
-
-const createSettingsLog = async ({ hotel, user, action, target, details }) => {
-  try {
-    await SettingsLog.create({ hotel, user, action, target, details });
-  } catch (error) {
-    console.error("settings log create error", error);
-  }
-};
+const { createHotelLog } = require("../utils/hotelLog");
 
 // @desc    Get Terms & Conditions (by hotel)
 exports.getTerms = asyncHandler(async (req, res, next) => {
@@ -42,7 +35,7 @@ exports.createTerms = asyncHandler(async (req, res, next) => {
     printTerms: req.body.printTerms || "",
   });
 
-  await createSettingsLog({
+  await createHotelLog({
     hotel: hotelId,
     user: req.user?._id,
     action: "create",
@@ -66,7 +59,7 @@ exports.updateTerms = asyncHandler(async (req, res) => {
     { new: true, upsert: true }
   );
 
-  await createSettingsLog({
+  await createHotelLog({
     hotel: hotelId,
     user: req.user?._id,
     action: previousSettings ? "update" : "create",

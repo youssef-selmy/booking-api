@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const TravelAgent = require("../models/travelAgentModel");
-const factory = require("./handlersFactoryController");
 const ApiError = require("../utils/apiError");
+const { createHotelLog } = require("../utils/hotelLog");
 
 // ======================================
 // 🔒 Create Travel Agent (Scoped to Hotel)
@@ -14,6 +14,14 @@ exports.createTravelAgent = asyncHandler(async (req, res, next) => {
   const agent = await TravelAgent.create({
     ...req.body,
     hotel: req.user.hotel // 🔥 Auto attach hotel
+  });
+
+  await createHotelLog({
+    hotel: req.user.hotel,
+    user: req.user?._id,
+    action: "create",
+    target: "travel-agent",
+    details: { travelAgentId: agent._id, name: agent.name },
   });
 
   res.status(201).json({
@@ -78,6 +86,14 @@ exports.updateTravelAgent = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Travel agent not found", 404));
   }
 
+  await createHotelLog({
+    hotel: req.user.hotel,
+    user: req.user?._id,
+    action: "update",
+    target: "travel-agent",
+    details: { travelAgentId: agent._id, name: agent.name },
+  });
+
   res.status(200).json({
     status: "success",
     data: agent
@@ -96,6 +112,14 @@ exports.deleteTravelAgent = asyncHandler(async (req, res, next) => {
   if (!agent) {
     return next(new ApiError("Travel agent not found", 404));
   }
+
+  await createHotelLog({
+    hotel: req.user.hotel,
+    user: req.user?._id,
+    action: "delete",
+    target: "travel-agent",
+    details: { travelAgentId: agent._id, name: agent.name },
+  });
 
   res.status(204).json({
     status: "success",

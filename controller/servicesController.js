@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const ApiError = require('../utils/apiError');
 const Services = require('../models/roomServicesModel');
+const { createHotelLog } = require("../utils/hotelLog");
 
 // @desc    Get all services for the hotel
 // @route   GET /api/v1/services
@@ -53,6 +54,14 @@ exports.createService = asyncHandler(async (req, res, next) => {
 
   const service = await Services.create(req.body);
 
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "create",
+    target: "service",
+    details: { serviceId: service._id, name: service.name },
+  });
+
   res.status(201).json({
     success: true,
     data: service,
@@ -74,6 +83,14 @@ exports.updateService = asyncHandler(async (req, res, next) => {
     return next(new ApiError('Service not found or not authorized', 404));
   }
 
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "update",
+    target: "service",
+    details: { serviceId: updated._id, name: updated.name },
+  });
+
   res.status(200).json({ success: true, data: updated });
 });
 
@@ -90,6 +107,14 @@ exports.deleteService = asyncHandler(async (req, res, next) => {
   if (!deleted) {
     return next(new ApiError('Service not found or not authorized', 404));
   }
+
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "delete",
+    target: "service",
+    details: { serviceId: deleted._id, name: deleted.name },
+  });
 
   res.status(204).send();
 });

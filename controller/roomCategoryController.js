@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const ApiError = require('../utils/apiError');
 const RoomCategory = require('../models/roomCategoryModel');
+const { createHotelLog } = require("../utils/hotelLog");
 
 // @desc    Get all room categories for specific hotel
 // @route   GET /api/v1/room-categories
@@ -53,6 +54,14 @@ exports.createRoomCategory = asyncHandler(async (req, res, next) => {
 
   const category = await RoomCategory.create(req.body);
 
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "create",
+    target: "room-category",
+    details: { categoryId: category._id, name: category.name },
+  });
+
   res.status(201).json({
     success: true,
     data: category,
@@ -73,6 +82,14 @@ exports.updateRoomCategory = asyncHandler(async (req, res, next) => {
     return next(new ApiError('Room category not found or not authorized', 404));
   }
 
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "update",
+    target: "room-category",
+    details: { categoryId: category._id, name: category.name },
+  });
+
   res.status(200).json({
     success: true,
     data: category,
@@ -91,6 +108,14 @@ exports.deleteRoomCategory = asyncHandler(async (req, res, next) => {
   if (!category) {
     return next(new ApiError('Room category not found or not authorized', 404));
   }
+
+  await createHotelLog({
+    hotel: hotelId,
+    user: req.user?._id,
+    action: "delete",
+    target: "room-category",
+    details: { categoryId: category._id, name: category.name },
+  });
 
   res.status(204).send();
 });
